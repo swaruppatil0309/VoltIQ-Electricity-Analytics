@@ -396,8 +396,11 @@
 
   function paintConvert(step, done) {
     const tokens = $$('#tokenStrip .token');
+    // tokenIndex is -1 for the "flush the stack" steps at the end: every token
+    // has been read by then, so the whole strip counts as processed.
+    const readUpTo = !step ? 0 : (step.tokenIndex < 0 ? tokens.length : step.tokenIndex);
     tokens.forEach((el, i) => {
-      el.classList.toggle('done', done || (step && step.tokenIndex >= 0 && i < step.tokenIndex));
+      el.classList.toggle('done', done || i < readUpTo);
       el.classList.toggle('watch', !!step && step.tokenIndex === i);
     });
     els.opStack.innerHTML = stackMarkup(step ? step.stack : [], 'ops');
