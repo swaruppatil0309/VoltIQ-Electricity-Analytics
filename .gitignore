@@ -1,0 +1,26 @@
+# ── VoltIQ Care (C++ DSA project) ──
+SmartHospitalSystem/bin/hospital
+SmartHospitalSystem/bin/hospital.exe
+*.o
+*.obj
+
+# ── python ──
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+data/
+*.csv.gz
+
+# ── node ──
+node_modules/
+npm-debug.log*
+
+# ── editors / OS ──
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ── runtime ──
+*.log

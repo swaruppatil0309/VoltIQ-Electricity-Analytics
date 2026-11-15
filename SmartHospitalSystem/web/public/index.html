@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VoltIQ Care · Smart Hospital Management System</title>
+<meta name="description" content="Smart Hospital Management System — C++17 DSA engine: priority-queue triage, hash-table lookup, BST/binary search, sparse-matrix bed allocation." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%230b1220'/><path d='M50 22v56M22 50h56' stroke='%2322d3ee' stroke-width='14' stroke-linecap='round'/></svg>" />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+<!-- ───────────────────────── ambient background ───────────────────────── -->
+<div class="aurora" aria-hidden="true">
+  <span class="orb orb-a"></span>
+  <span class="orb orb-b"></span>
+  <span class="orb orb-c"></span>
+  <div class="grid-overlay"></div>
+</div>
+
+<div class="shell">
+
+  <!-- ───────────────────────────── sidebar ───────────────────────────── -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 4.5v15M4.5 12h15" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <strong>VoltIQ<span>Care</span></strong>
+        <small>Hospital Command Center</small>
+      </div>
+    </div>
+
+    <nav class="nav" id="nav">
+      <button class="nav-item active" data-view="overview">
+        <svg viewBox="0 0 24 24"><path d="M3 12h4l2.5-7 4 14 2.5-7h5"/></svg>
+        <span>Overview</span>
+      </button>
+      <button class="nav-item" data-view="triage">
+        <svg viewBox="0 0 24 24"><path d="M12 3v6m0 0 3-3m-3 3L9 6M5 21V11l7-6 7 6v10"/></svg>
+        <span>Triage Queue</span>
+        <em class="pill" id="navQueueCount">0</em>
+      </button>
+      <button class="nav-item" data-view="patients">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5"/></svg>
+        <span>Patients</span>
+      </button>
+      <button class="nav-item" data-view="wards">
+        <svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="2.5"/><path d="M3.5 12h17M12 4v16"/></svg>
+        <span>Bed Allocator</span>
+      </button>
+      <button class="nav-item" data-view="algorithms">
+        <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M6 8.5v3a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-3M12 13.5v2"/></svg>
+        <span>Data Structures</span>
+      </button>
+      <button class="nav-item" data-view="benchmarks">
+        <svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+        <span>Benchmarks</span>
+      </button>
+    </nav>
+
+    <div class="side-foot">
+      <div class="engine-card">
+        <div class="engine-row">
+          <span class="dot" id="engineDot"></span>
+          <strong id="engineLabel">Connecting…</strong>
+        </div>
+        <p>C++17 triage engine</p>
+        <div class="engine-meta">
+          <span>Heap <b id="sideHeapHeight">0</b></span>
+          <span>Hash <b id="sideLoad">0%</b></span>
+        </div>
+      </div>
+      <p class="credit">DSA Project · Priority Queue · Hashing · BST · Sparse Matrix</p>
+    </div>
+  </aside>
+
+  <!-- ───────────────────────────── main ───────────────────────────── -->
+  <main class="main">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="icon-btn menu-toggle" id="menuToggle" aria-label="Toggle navigation">
+          <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+        <div>
+          <h1 id="viewTitle">Live Overview</h1>
+          <p id="viewSub">Real-time triage, capacity and emergency response</p>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <div class="clock-chip" title="Virtual hospital clock">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>
+          <div>
+            <strong id="virtualClock">08:00</strong>
+            <small id="shiftLabel">Day shift</small>
+          </div>
+        </div>
+        <button class="btn btn-ghost" id="tickBtn" title="Advance simulation by 1 minute">
+          <svg viewBox="0 0 24 24"><path d="M13 5l7 7-7 7M4 5l7 7-7 7"/></svg>
+          Advance 1 min
+        </button>
+        <button class="btn btn-ghost" id="tick5Btn" title="Advance simulation by 5 minutes">+5 min</button>
+        <button class="btn btn-primary" id="registerBtn">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          New Patient
+        </button>
+      </div>
+    </header>
+
+    <div class="alert-strip" id="alertStrip" hidden></div>
+
+    <!-- ══════════════════════════ OVERVIEW ══════════════════════════ -->
+    <section class="view active" id="view-overview">
+
+      <div class="kpi-grid">
+        <article class="kpi" data-tone="cyan">
+          <div class="kpi-head">
+            <span class="kpi-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.9 3.2-6.4 7-6.4s7 2.5 7 6.4"/></svg></span>
+            <span class="kpi-tag">Registry</span>
+          </div>
+          <strong class="kpi-value" id="kpiTotal">0</strong>
+          <span class="kpi-label">Patients in system</span>
+          <div class="kpi-foot"><span class="mono" id="kpiHashInfo">hash table</span></div>
+        </article>
+
+        <article class="kpi" data-tone="amber">
+          <div class="kpi-head">
+            <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M12 7v5l3.5 2"/><circle cx="12" cy="12" r="8.5"/></svg></span>
+            <span class="kpi-tag">Triage heap</span>
+          </div>
+          <strong class="kpi-value" id="kpiWaiting">0</strong>
+          <span class="kpi-label">Waiting for a doctor</span>
+          <div class="kpi-foot"><span class="mono" id="kpiHeapInfo">heap height 0</span></div>
+        </article>
+
+        <article class="kpi" data-tone="rose">
+          <div class="kpi-head">
+            <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M12 3.5 21 20H3z"/><path d="M12 9.5v4.5M12 17.2v.1"/></svg></span>
+            <span class="kpi-tag">Red alert</span>
+          </div>
+          <strong class="kpi-value" id="kpiCritical">0</strong>
+          <span class="kpi-label">Critical patients waiting</span>
+          <div class="kpi-foot"><span class="mono">priority weight 4</span></div>
+        </article>
+
+        <article class="kpi" data-tone="violet">
+          <div class="kpi-head">
+            <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M3 18v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5"/><path d="M3 18h18M6 11V7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v4"/></svg></span>
+            <span class="kpi-tag">Sparse matrix</span>
+          </div>
+          <strong class="kpi-value" id="kpiBeds">0 <small>/ 0</small></strong>
+          <span class="kpi-label">Beds occupied</span>
+          <div class="kpi-foot">
+            <div class="mini-bar"><i id="kpiBedBar" style="width:0%"></i></div>
+            <span class="mono" id="kpiDensity">0%</span>
+          </div>
+        </article>
+
+        <article class="kpi" data-tone="emerald">
+          <div class="kpi-head">
+            <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M8 3v4M16 3v4"/><rect x="4" y="7" width="16" height="14" rx="2.5"/><path d="M12 12v5M9.5 14.5h5"/></svg></span>
+            <span class="kpi-tag">Doctors</span>
+          </div>
+          <strong class="kpi-value" id="kpiDoctors">0</strong>
+          <span class="kpi-label">Consultations running</span>
+          <div class="kpi-foot"><span class="mono" id="kpiShiftInfo">day shift</span></div>
+        </article>
+
+        <article class="kpi" data-tone="sky">
+          <div class="kpi-head">
+            <span class="kpi-icon"><svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.7-7.5-10A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 7.5 4c0 5.3-7.5 10-7.5 10Z"/></svg></span>
+            <span class="kpi-tag">Turnaround</span>
+          </div>
+          <strong class="kpi-value" id="kpiWait">0<small> min</small></strong>
+          <span class="kpi-label">Average wait</span>
+          <div class="kpi-foot"><span class="mono" id="kpiTreated">0 treated</span></div>
+        </article>
+      </div>
+
+      <div class="overview-grid">
+        <article class="card card-wide">
+          <header class="card-head">
+            <div>
+              <h2>Emergency pressure</h2>
+              <p>Live mix of patients by triage severity</p>
+            </div>
+            <span class="badge" id="pressureBadge">stable</span>
+          </header>
+          <div class="severity-stack" id="severityStack"></div>
+          <div class="severity-legend" id="severityLegend"></div>
+
+          <div class="divider"></div>
+
+          <div class="two-col">
+            <div>
+              <h3 class="sub-title">Ward occupancy</h3>
+              <div class="ward-bars" id="wardBars"></div>
+            </div>
+            <div>
+              <h3 class="sub-title">Next in line <span class="hint">heap order</span></h3>
+              <ol class="next-list" id="nextList"></ol>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <header class="card-head">
+            <div>
+              <h2>Activity feed</h2>
+              <p>Engine event stream</p>
+            </div>
+            <span class="live-tag"><i></i>live</span>
+          </header>
+          <ul class="activity" id="activityFeed"></ul>
+        </article>
+      </div>
+
+      <div class="quick-actions">
+        <button class="action-card" data-action="mass-casualty">
+          <span class="action-icon rose"><svg viewBox="0 0 24 24"><path d="M12 3 21 20H3z"/><path d="M12 9.5v4.5M12 17.2v.1"/></svg></span>
+          <div><strong>Mass casualty drill</strong><small>Inject 12 emergency arrivals</small></div>
+        </button>
+        <button class="action-card" data-action="call-next">
+          <span class="action-icon cyan"><svg viewBox="0 0 24 24"><path d="M4 12h13M13 6l6 6-6 6"/></svg></span>
+          <div><strong>Call next patient</strong><small>Pop the heap top</small></div>
+        </button>
+        <button class="action-card" data-view-jump="patients">
+          <span class="action-icon violet"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg></span>
+          <div><strong>Patient lookup</strong><small>Hash · BST · binary search</small></div>
+        </button>
+        <button class="action-card" data-view-jump="wards">
+          <span class="action-icon emerald"><svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="2.5"/><path d="M3.5 12h17M12 4v16"/></svg></span>
+          <div><strong>Allocate a bed</strong><small>Sparse matrix first-fit</small></div>
+        </button>
+      </div>
+    </section>
+
+    <!-- ══════════════════════════ TRIAGE ══════════════════════════ -->
+    <section class="view" id="view-triage">
+      <div class="split">
+        <article class="card">
+          <header class="card-head">
+            <div>
+              <h2>Priority queue — array heap view</h2>
+              <p>Index 0 is always the next patient to be treated</p>
+            </div>
+            <span class="badge good" id="heapValidBadge">heap valid</span>
+          </header>
+          <div class="heap-legend">
+            <span><i class="sw critical"></i> Critical · 4</span>
+            <span><i class="sw emergency"></i> Emergency · 3</span>
+            <span><i class="sw urgent"></i> Urgent · 2</span>
+            <span><i class="sw standard"></i> Standard · 1</span>
+          </div>
+          <div class="heap-array" id="heapArray"></div>
+          <p class="foot-note">
+            Ordering key: <code>(severity weight ↓, waiting time ↓)</code> — critical cases outrank everyone,
+            and inside a severity band the longest-waiting patient wins, which prevents starvation.
+            Both <code>push</code> and <code>pop</code> are <code>O(log n)</code>.
+          </p>
+        </article>
+
+        <article class="card">
+          <header class="card-head">
+            <div>
+              <h2>Service order</h2>
+              <p>Simulated pops from the same heap</p>
+            </div>
+          </header>
+          <ol class="service-order" id="serviceOrder"></ol>
+          <div class="divider"></div>
+          <h3 class="sub-title">Controls</h3>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="callNextBtn">Call next patient</button>
+            <button class="btn btn-ghost" id="massBtn">Mass casualty (+12)</button>
+            <button class="btn btn-ghost" id="tick10Btn">Advance 10 min</button>
+          </div>
+          <div class="sim-box">
+            <label class="switch">
+              <input type="checkbox" id="autoTick" />
+              <span class="track"><span class="thumb"></span></span>
+              <span class="switch-text">Auto-play simulation <small>1 virtual minute / 2s</small></span>
+            </label>
+          </div>
+        </article>
+      </div>
+
+      <article class="card">
+        <header class="card-head">
+          <div>
+            <h2>Waiting room</h2>
+            <p>Sorted by the live heap order — re-prioritise any patient</p>
+          </div>
+          <span class="badge" id="waitingBadge">0 waiting</span>
+        </header>
+        <div class="table-wrap">
+          <table class="data-table" id="waitingTable">
+            <thead>
+              <tr>
+                <th>#</th><th>Patient</th><th>Severity</th><th>Arrived</th><th>Waiting</th>
+                <th>Condition</th><th class="right">Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <!-- ══════════════════════════ PATIENTS ══════════════════════════ -->
+    <section class="view" id="view-patients">
+      <article class="card search-card">
+        <header class="card-head">
+          <div>
+            <h2>Instant patient lookup</h2>
+            <p>Numeric input → hash table <code>O(1)</code>; text → BST + binary-search prefix <code>O(log n)</code></p>
+          </div>
+        </header>
+        <div class="search-row">
+          <div class="search-field">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16.2 16.2 21 21"/></svg>
+            <input id="searchInput" type="search" placeholder="Search by patient ID (e.g. 1004) or name (e.g. Sunita)" autocomplete="off" />
+            <kbd>Ctrl</kbd><kbd>K</kbd>
+          </div>
+          <button class="btn btn-primary" id="searchBtn">Search</button>
+          <button class="btn btn-ghost" id="clearSearchBtn">Clear</button>
+        </div>
+        <div class="search-metrics" id="searchMetrics" hidden>
+          <span><b>Algorithm</b> <i id="algoName">—</i></span>
+          <span><b>Probes</b> <i id="probeCount">0</i></span>
+          <span><b>Time</b> <i id="searchTime">0 µs</i></span>
+          <span><b>Matches</b> <i id="matchCount">0</i></span>
+        </div>
+        <div class="search-results" id="searchResults"></div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <div>
+            <h2>Patient registry</h2>
+            <p id="registrySub">All records in the hash table</p>
+          </div>
+          <div class="head-actions">
+            <div class="segmented" id="statusFilter">
+              <button class="active" data-filter="all">All</button>
+              <button data-filter="waiting">Waiting</button>
+              <button data-filter="admitted">Admitted</button>
+              <button data-filter="treated">Treated</button>
+            </div>
+            <button class="btn btn-primary sm" id="registerBtn2">New patient</button>
+          </div>
+        </header>
+        <div class="table-wrap">
+          <table class="data-table" id="patientTable">
+            <thead>
+              <tr>
+                <th>ID</th><th>Patient</th><th>Age / Gender</th><th>Severity</th><th>Status</th>
+                <th>Location</th><th>Doctor</th><th class="right">Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="foot-note" id="registryEmpty" hidden>No patients match this filter.</p>
+      </article>
+    </section>
+
+    <!-- ══════════════════════════ WARDS ══════════════════════════ -->
+    <section class="view" id="view-wards">
+      <div class="ward-layout">
+        <article class="card">
+          <header class="card-head">
+            <div>
+              <h2>Bed allocator</h2>
+              <p>Sparse matrix <code>rows × cols</code> — only occupied cells are stored as triplets</p>
+            </div>
+            <div class="segmented" id="strategyPicker">
+              <button data-strategy="first" class="active">First fit</button>
+              <button data-strategy="column">Column stack</button>
+              <button data-strategy="spread">Spread out</button>
+            </div>
+          </header>
+
+          <div class="ward-tabs" id="wardTabs"></div>
+
+          <div class="bed-legend">
+            <span><i class="bed-dot free"></i> Free</span>
+            <span><i class="bed-dot critical"></i> Critical</span>
+            <span><i class="bed-dot emergency"></i> Emergency</span>
+            <span><i class="bed-dot urgent"></i> Urgent</span>
+            <span><i class="bed-dot standard"></i> Standard</span>
+          </div>
+
+          <div class="bed-grid-wrap">
+            <div class="bed-grid" id="bedGrid"></div>
+          </div>
+
+          <div class="matrix-stats" id="matrixStats"></div>
+        </article>
+
+        <article class="card">
+          <header class="card-head">
+            <div>
+              <h2>Sparse triplets</h2>
+              <p>Row-major <code>(row, col, patientId)</code></p>
+            </div>
+          </header>
+          <div class="triplet-list" id="tripletList"></div>
+          <div class="divider"></div>
+          <h3 class="sub-title">Memory comparison</h3>
+          <div class="memory-compare" id="memoryCompare"></div>
+        </article>
+      </div>
+
+      <article class="card">
+        <header class="card-head">
+          <div>
+            <h2>Admitted patients</h2>
+            <p>Bed coordinates come straight from the sparse matrices</p>
+          </div>
+        </header>
+        <div class="table-wrap">
+          <table class="data-table" id="admittedTable">
+            <thead>
+              <tr><th>ID</th><th>Patient</th><th>Severity</th><th>Ward</th><th>Bed [row, col]</th><th>Doctor</th><th class="right">Actions</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <!-- ══════════════════════════ ALGORITHMS ══════════════════════════ -->
+    <section class="view" id="view-algorithms">
+      <div class="algo-grid">
+        <article class="card algo-card">
+          <div class="algo-head">
+            <span class="algo-icon rose"><svg viewBox="0 0 24 24"><path d="M12 3v6m0 0 3-3m-3 3L9 6M5 21V11l7-6 7 6v10"/></svg></span>
+            <div><h2>Priority queue</h2><span class="complexity">push O(log n) · pop O(log n) · peek O(1)</span></div>
+          </div>
+          <p>Custom binary max-heap built from scratch for emergency triage. Critical patients always surface first; equal severities are broken by longest wait.</p>
+          <div class="algo-stats">
+            <div><b id="asHeapSize">0</b><small>queued</small></div>
+            <div><b id="asHeapHeight">0</b><small>height</small></div>
+            <div><b id="asHeapValid">—</b><small>invariant</small></div>
+          </div>
+          <code class="algo-code">if (severityA != severityB) return severityA &gt; severityB;
+return arrivalA &lt; arrivalB;   // longest wait wins</code>
+        </article>
+
+        <article class="card algo-card">
+          <div class="algo-head">
+            <span class="algo-icon cyan"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M6 8.5v3a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-3"/><circle cx="12" cy="18" r="2.5"/><path d="M12 13.5v2"/></svg></span>
+            <div><h2>Hash table</h2><span class="complexity">get O(1) · put O(1) · delete O(1)</span></div>
+          </div>
+          <p>Separate chaining with Knuth multiplicative hashing and automatic rehashing above a 0.75 load factor, so patient-ID lookup never degrades.</p>
+          <div class="algo-stats">
+            <div><b id="asBuckets">0</b><small>buckets</small></div>
+            <div><b id="asLoad">0%</b><small>load factor</small></div>
+            <div><b id="asChain">0</b><small>longest chain</small></div>
+          </div>
+          <code class="algo-code">k *= 2654435761ULL; k ^= k &gt;&gt; 16;
+index = k &amp; (bucketCount - 1);</code>
+        </article>
+
+        <article class="card algo-card">
+          <div class="algo-head">
+            <span class="algo-icon violet"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.4"/><circle cx="6" cy="12" r="2.4"/><circle cx="18" cy="12" r="2.4"/><circle cx="12" cy="19" r="2.4"/><path d="M12 7.4v2M10.2 10.4 7.8 11.2M13.8 10.4l2.4.8M12 16.6v-2"/></svg></span>
+            <div><h2>Binary search + BST</h2><span class="complexity">search O(log n) · insert O(log n)</span></div>
+          </div>
+          <p>A sorted index supports binary search over IDs and name prefixes, while a full binary search tree backs alphabetical traversal and exact-name lookup.</p>
+          <div class="algo-stats">
+            <div><b id="asBstHeight">0</b><small>BST height</small></div>
+            <div><b id="asIndexed">0</b><small>indexed keys</small></div>
+            <div><b id="asProbes">—</b><small>last probes</small></div>
+          </div>
+          <code class="algo-code">while (lo &lt;= hi) {
+  int mid = lo + (hi - lo) / 2;   // overflow-safe
+  if (v[mid] == key) return mid;
+}</code>
+        </article>
+
+        <article class="card algo-card">
+          <div class="algo-head">
+            <span class="algo-icon emerald"><svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="2.5"/><path d="M3.5 12h17M12 4v16"/></svg></span>
+            <div><h2>Sparse matrix</h2><span class="complexity">get O(log nnz) · set O(nnz) · memory O(nnz)</span></div>
+          </div>
+          <p>Each ward stores only occupied beds as sorted (row, col, patientId) triplets. First-fit, column-stack and spread strategies route admissions.</p>
+          <div class="algo-stats">
+            <div><b id="asCells">0</b><small>occupied</small></div>
+            <div><b id="asDensity">0%</b><small>density</small></div>
+            <div><b id="asSaved">0%</b><small>memory saved</small></div>
+          </div>
+          <code class="algo-code">// dense: rows*cols ints      → 28 KB
+// sparse: nnz * triplet      →  2.4 KB</code>
+        </article>
+      </div>
+
+      <article class="card">
+        <header class="card-head">
+          <div>
+            <h2>Operation complexity map</h2>
+            <p>Every operation the hospital runs, and the structure that makes it fast</p>
+          </div>
+        </header>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Operation</th><th>Structure</th><th>Time</th><th>Space</th><th>Why it matters</th></tr></thead>
+            <tbody>
+              <tr><td>Register patient</td><td>Hash table + heap + index</td><td><span class="tag good">O(log n)</span></td><td>O(n)</td><td>Instant intake even at peak load</td></tr>
+              <tr><td>Lookup by ID</td><td>Hash table</td><td><span class="tag good">O(1)</span></td><td>O(n)</td><td>Emergency staff find records immediately</td></tr>
+              <tr><td>Lookup by name</td><td>BST / binary search</td><td><span class="tag good">O(log n)</span></td><td>O(n)</td><td>Alphabetical and prefix search</td></tr>
+              <tr><td>Next emergency case</td><td>Binary max-heap</td><td><span class="tag good">O(log n)</span></td><td>O(n)</td><td>Critical patients never wait behind routine cases</td></tr>
+              <tr><td>Re-triage (escalate)</td><td>Heap remove + push</td><td><span class="tag warn">O(n)</span></td><td>O(1)</td><td>Happens rarely; keeps ordering exact</td></tr>
+              <tr><td>Allocate bed</td><td>Sparse matrix</td><td><span class="tag good">O(rows·cols)</span></td><td><span class="tag good">O(nnz)</span></td><td>Ward state fits in cache, cheap to scan</td></tr>
+              <tr><td>Bed occupancy report</td><td>Sparse triplets</td><td><span class="tag good">O(nnz)</span></td><td>O(nnz)</td><td>Skips empty beds entirely</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <!-- ══════════════════════════ BENCHMARKS ══════════════════════════ -->
+    <section class="view" id="view-benchmarks">
+      <article class="card">
+        <header class="card-head">
+          <div>
+            <h2>Complexity benchmarks</h2>
+            <p>Measured inside the C++ engine on 200,000 records — not theoretical claims</p>
+          </div>
+          <button class="btn btn-primary" id="runBenchBtn">Run benchmark</button>
+        </header>
+        <div id="benchBody" class="bench-body">
+          <p class="foot-note">Press <b>Run benchmark</b> to time every data structure against its naive alternative.</p>
+        </div>
+      </article>
+
+      <article class="card">
+        <header class="card-head">
+          <div>
+            <h2>Invariant self-test</h2>
+            <p>20 assertions executed by the C++ engine</p>
+          </div>
+          <span class="badge good">20 / 20 passing</span>
+        </header>
+        <ul class="checks">
+          <li><b>Hash table</b> stores and retrieves 500 patients exactly, keeps load factor ≤ 0.75, deletes cleanly</li>
+          <li><b>Binary heap</b> satisfies the max-heap property and pops in non-increasing priority order</li>
+          <li><b>Binary search</b> finds existing IDs, rejects missing ones, uses ≤ 8 probes over 100 keys</li>
+          <li><b>BST</b> matches exact names and visits every node in-order</li>
+          <li><b>Sparse matrix</b> updates cells in place, reads empty cells as zero, allocates first-fit</li>
+          <li><b>Engine integration</b> registers seed patients, allocates beds, keeps the heap valid</li>
+        </ul>
+        <div class="cli-hint">
+          <span>Run it yourself</span>
+          <code>g++ -std=c++17 -O2 -pthread -o hospital cpp/*.cpp &amp;&amp; ./hospital selftest</code>
+        </div>
+      </article>
+    </section>
+
+  </main>
+</div>
+
+<!-- ───────────────────────── register modal ───────────────────────── -->
+<div class="modal-backdrop" id="modal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <header class="modal-head">
+      <div>
+        <h2 id="modalTitle">Register a new patient</h2>
+        <p>Triage happens instantly — the heap re-orders itself</p>
+      </div>
+      <button class="icon-btn" id="modalClose" aria-label="Close">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </header>
+
+    <form id="registerForm" class="modal-body">
+      <div class="field-grid">
+        <label class="field">
+          <span>Full name <i>*</i></span>
+          <input name="name" required placeholder="e.g. Rohan Kulkarni" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>Age</span>
+          <input name="age" type="number" min="0" max="130" placeholder="42" />
+        </label>
+        <label class="field">
+          <span>Gender</span>
+          <select name="gender">
+            <option>Male</option><option>Female</option><option>Other</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Phone</span>
+          <input name="phone" placeholder="98220 00000" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>Department</span>
+          <select name="department">
+            <option>General Medicine</option><option>Cardiology</option><option>Neurology</option>
+            <option>Orthopaedics</option><option>Pulmonology</option><option>Pediatrics</option>
+            <option>Maternity</option><option>Emergency Medicine</option><option>Trauma Surgery</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Condition</span>
+          <input name="condition" placeholder="e.g. Severe chest pain" autocomplete="off" />
+        </label>
+      </div>
+
+      <div class="severity-picker">
+        <span class="picker-label">Triage severity</span>
+        <div class="severity-options">
+          <label class="sev-card critical">
+            <input type="radio" name="severity" value="critical" />
+            <span class="sev-dot"></span>
+            <strong>Critical</strong>
+            <small>Immediate · weight 4</small>
+          </label>
+          <label class="sev-card emergency">
+            <input type="radio" name="severity" value="emergency" />
+            <span class="sev-dot"></span>
+            <strong>Emergency</strong>
+            <small>Very urgent · weight 3</small>
+          </label>
+          <label class="sev-card urgent">
+            <input type="radio" name="severity" value="urgent" />
+            <span class="sev-dot"></span>
+            <strong>Urgent</strong>
+            <small>Within an hour · weight 2</small>
+          </label>
+          <label class="sev-card standard">
+            <input type="radio" name="severity" value="standard" checked />
+            <span class="sev-dot"></span>
+            <strong>Standard</strong>
+            <small>Routine OPD · weight 1</small>
+          </label>
+        </div>
+      </div>
+
+      <footer class="modal-foot">
+        <button type="button" class="btn btn-ghost" id="modalCancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="submitPatient">Add to queue</button>
+      </footer>
+    </form>
+  </div>
+</div>
+
+<div class="toast-stack" id="toasts"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
