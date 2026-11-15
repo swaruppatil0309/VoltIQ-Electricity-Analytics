@@ -71,6 +71,11 @@ SmartHospitalSystem/
 ├── web/
 │   ├── server.js              static host + /api/* reverse proxy (no npm deps)
 │   └── public/                dashboard (hand-written HTML/CSS/JS)
+├── standalone/
+│   ├── engine.js              JS mirror of the C++ engine (same /api surface)
+│   └── build-standalone.js    bundles everything into one HTML file
+├── VoltIQ-Care-Standalone.html  ← single-file build: double-click to open
+├── docs/index.html            same file, served by GitHub Pages
 ├── run.sh                     one-command launcher (Linux / macOS / sandbox)
 ├── run.bat                    one-command launcher (Windows)
 └── bin/hospital               compiled engine
@@ -78,9 +83,23 @@ SmartHospitalSystem/
 
 ---
 
-## Run it
+## Three ways to open it
 
-### One command
+| Option | How | Needs |
+|---|---|---|
+| **1 · Single file** (easiest) | Double-click `VoltIQ-Care-Standalone.html` | nothing — works offline |
+| **2 · Local full stack** | `./run.sh` → http://localhost:3000 | g++ + Node |
+| **3 · GitHub Pages** | enable Pages → `/SmartHospitalSystem/docs` | one toggle in repo settings |
+
+The single-file build contains a JavaScript mirror of the engine so the dashboard works
+with no server and no compiler. The C++ engine in `cpp/` remains the canonical
+implementation — `standalone/engine.js` exists only for convenient distribution.
+
+```bash
+cd standalone && node build-standalone.js   # regenerate the single file
+```
+
+### Option 2 — one command
 
 ```bash
 ./run.sh                     # compiles, starts engine + dashboard
@@ -91,7 +110,7 @@ SmartHospitalSystem/
 run.bat                      :: Windows
 ```
 
-### Manual
+### Option 2 — manual
 
 ```bash
 # 1. build the C++ engine
@@ -164,7 +183,8 @@ From `./bin/hospital bench` (60,000 records, 6,000 queries):
 
 ```
 ./bin/hospital selftest   →  25 / 25 assertions pass
-headless UI test          →  32 / 32 checks pass
+headless UI test          →  32 / 32 checks pass (live C++ server)
+offline single-file test  →  30 / 30 checks pass (network blocked)
 g++ -Wall -Wextra         →  zero warnings
 ```
 
