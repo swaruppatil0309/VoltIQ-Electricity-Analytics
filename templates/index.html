@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoltIQ | Electricity Analytics</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="bolt">ϟ</span><div><b>VoltIQ</b><small>POWER INTELLIGENCE</small></div></div>
+  <div class="status"><span class="pulse"></span> ANALYTICS SYSTEM</div>
+</header>
+<main class="container">
+  <section class="hero">
+    <div><p class="eyebrow">PROBABILITY & STATISTICS • COURSE PROJECT</p>
+      <h1>Electricity Consumption<br><span>Analytics Dashboard</span></h1>
+      <p class="sub">Explore consumption patterns using descriptive statistics, probability, confidence intervals, outlier detection and regression.</p>
+    </div>
+    <div class="hero-mark">V<span>Q</span></div>
+  </section>
+
+  <section class="filters panel">
+    <div><label for="startDate">START DATE</label><input type="date" id="startDate"></div>
+    <div><label for="endDate">END DATE</label><input type="date" id="endDate"></div>
+    <button id="applyBtn">Apply filters</button>
+    <button class="secondary" id="resetBtn">Reset</button>
+    <a class="download" id="downloadBtn" href="/api/export">↓ Export CSV</a>
+  </section>
+
+  <div id="message" class="message">Loading dataset and calculating statistics…</div>
+  <section class="metrics" id="metrics">
+    <article class="metric panel"><span>AVERAGE POWER</span><strong id="mean">—</strong><small>kilowatts</small></article>
+    <article class="metric panel"><span>MEDIAN POWER</span><strong id="median">—</strong><small>kilowatts</small></article>
+    <article class="metric panel"><span>STANDARD DEVIATION</span><strong id="std">—</strong><small>kilowatts</small></article>
+    <article class="metric panel"><span>VALID READINGS</span><strong id="count">—</strong><small>observations</small></article>
+  </section>
+
+  <section class="grid">
+    <article class="panel chart-panel wide"><div class="panel-head"><div><p class="eyebrow">TREND ANALYSIS</p><h2>Daily average consumption</h2></div><span class="tag">TIME SERIES</span></div><canvas id="trendChart"></canvas></article>
+    <article class="panel"><div class="panel-head"><div><p class="eyebrow">PROBABILITY</p><h2>Empirical probability</h2></div></div><div class="probability"><strong id="prob">—</strong><span>Probability of a reading above the mean</span></div><p class="note">Calculated as the number of readings above the sample mean divided by the total valid readings.</p></article>
+    <article class="panel"><div class="panel-head"><div><p class="eyebrow">ESTIMATION</p><h2>95% confidence interval</h2></div></div><div class="ci"><strong id="ciLow">—</strong><span>to</span><strong id="ciHigh">—</strong></div><p class="note">A t-based confidence interval for the population mean power consumption.</p></article>
+    <article class="panel chart-panel wide"><div class="panel-head"><div><p class="eyebrow">PREDICTIVE MODEL</p><h2>Linear regression forecast</h2></div><span class="tag">7-DAY FORECAST</span></div><div class="reg-stats"><div><small>MAE</small><b id="mae">—</b></div><div><small>RMSE</small><b id="rmse">—</b></div><div><small>R²</small><b id="r2">—</b></div></div><canvas id="forecastChart"></canvas></article>
+    <article class="panel"><div class="panel-head"><div><p class="eyebrow">ANOMALY ANALYSIS</p><h2>Outlier detection</h2></div></div><div class="outlier"><strong id="outliers">—</strong><span>potential outlier readings</span></div><p class="note">IQR method: values below Q1 − 1.5×IQR or above Q3 + 1.5×IQR.</p></article>
+    <article class="panel"><div class="panel-head"><div><p class="eyebrow">DESCRIPTIVE STATISTICS</p><h2>Consumption range</h2></div></div><div class="range"><div><small>MINIMUM</small><b id="min">—</b></div><div><small>MAXIMUM</small><b id="max">—</b></div></div><p class="note" id="dateRange">Date range: —</p></article>
+  </section>
+  <footer>VoltIQ • Electricity Consumption Analytics • Built with Python, Flask, Pandas, Scikit-learn and Chart.js</footer>
+</main>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body></html>

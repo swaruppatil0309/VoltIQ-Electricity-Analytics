@@ -1,0 +1,1 @@
+Place your household_power_consumption.txt dataset in this folder. Do not rename it.

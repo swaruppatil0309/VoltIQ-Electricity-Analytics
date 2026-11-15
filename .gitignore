@@ -1,0 +1,8 @@
+data/household_power_consumption.txt
+data/household_power_consumption.zip
+data/household_power_consumption.tmp
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
