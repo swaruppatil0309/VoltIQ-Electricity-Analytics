@@ -1,0 +1,14 @@
+{
+  "name": "voltiq-expr",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VoltIQ Expr — Expression Solver & Visualizer (C++17 DSA engine + dashboard)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

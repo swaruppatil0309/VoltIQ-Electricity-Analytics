@@ -1,6 +1,11 @@
 # ── VoltIQ Care (C++ DSA project) ──
 SmartHospitalSystem/bin/hospital
 SmartHospitalSystem/bin/hospital.exe
+
+# ── VoltIQ Expr (C++ DSA project) ──
+ExpressionSolver/bin/xpr
+ExpressionSolver/bin/xpr.exe
+ExpressionSolver/package-lock.json
 *.o
 *.obj
 

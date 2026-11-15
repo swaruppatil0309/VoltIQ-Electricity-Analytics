@@ -1,0 +1,3140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>VoltIQ Expr · Expression Solver &amp; Visualizer (offline build)</title>
+<meta name="description" content="Convert infix expressions to postfix with a shunting-yard trace, evaluate them on a stack, and watch every step. C++17 DSA project." />
+<style>
+/* ==========================================================================
+   VoltIQ Expr — dashboard styles
+   Dark "lab" theme. No frameworks, no CDN, no build step.
+   ========================================================================== */
+
+:root {
+  --bg: #070b10;
+  --bg-soft: #0b1118;
+  --panel: #0e151d;
+  --panel-2: #121b25;
+  --panel-3: #17222e;
+  --line: #1e2b3a;
+  --line-soft: #16212c;
+  --text: #e7eef7;
+  --muted: #8598ad;
+  --muted-dim: #5d7086;
+  --mint: #3ddc97;
+  --mint-dim: #1d8f61;
+  --amber: #ffc857;
+  --blue: #5aa9ff;
+  --purple: #b28cff;
+  --red: #ff6b81;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, Arial, sans-serif;
+  --shadow: 0 18px 50px -30px rgba(0, 0, 0, 0.9);
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  padding: 0 24px 40px;
+  background: radial-gradient(1200px 600px at 15% -10%, #10202b 0%, transparent 60%),
+              radial-gradient(900px 500px at 90% 0%, #141a2e 0%, transparent 55%),
+              var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.bg-grid {
+  position: fixed;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(circle at 50% 0%, black, transparent 75%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+main, footer, .topbar { position: relative; z-index: 1; }
+
+main {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ------------------------------------------------------------------ topbar */
+.topbar {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 26px 4px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.brand { display: flex; align-items: center; gap: 14px; }
+
+.logo {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: linear-gradient(150deg, #16232f, #0d1620);
+  border: 1px solid var(--line);
+  color: var(--mint);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 26px -12px var(--mint);
+}
+.logo svg { width: 26px; height: 26px; }
+
+.brand-text h1 {
+  margin: 0;
+  font-size: 21px;
+  letter-spacing: -0.02em;
+  font-weight: 650;
+}
+.brand-text h1 span { color: var(--mint); }
+.brand-text p {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+}
+
+.topbar-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--muted);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.badge .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 10px var(--mint);
+}
+.badge.offline .dot { background: var(--amber); box-shadow: 0 0 10px var(--amber); }
+.badge.error .dot { background: var(--red); box-shadow: 0 0 10px var(--red); }
+
+/* ------------------------------------------------------------------ buttons */
+.btn {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 560;
+  padding: 9px 15px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--panel-3); border-color: #2a3b4e; }
+.btn:active { transform: translateY(1px); }
+.btn.primary {
+  background: linear-gradient(180deg, #46eda5, #2ec98a);
+  color: #04140d;
+  border-color: #2ec98a;
+  box-shadow: 0 10px 26px -14px var(--mint);
+}
+.btn.primary:hover { background: linear-gradient(180deg, #57f7b2, #35d494); }
+.btn.ghost { background: transparent; }
+.btn.ghost:hover { background: var(--panel-2); }
+.btn.small { padding: 6px 11px; font-size: 12.5px; }
+.btn.tiny { padding: 5px 9px; font-size: 12px; border-radius: 8px; }
+.btn.play { min-width: 96px; }
+
+.icon-btn {
+  appearance: none;
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s ease;
+}
+.icon-btn:hover { color: var(--text); border-color: #2a3b4e; background: var(--panel-3); }
+.icon-btn:disabled { opacity: 0.35; cursor: default; }
+
+.linkish {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.linkish:hover { color: var(--text); }
+
+.select {
+  appearance: none;
+  background: var(--panel-2) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%238598ad'/></svg>") no-repeat right 9px center;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  border-radius: 9px;
+  padding: 8px 26px 8px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------------ cards */
+.card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.017), transparent 40%), var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.card-title { margin: 0; font-size: 15.5px; font-weight: 620; letter-spacing: -0.01em; }
+.card-sub { margin: 4px 0 0; color: var(--muted); font-size: 12.8px; max-width: 62ch; }
+
+.field-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted-dim);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.field-label.small { font-size: 10.5px; margin-bottom: 6px; }
+
+/* ------------------------------------------------------------------ input */
+.input-card { padding: 22px; }
+
+.input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #060a0f;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 6px 8px 6px 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input-row:focus-within {
+  border-color: #2f6f5b;
+  box-shadow: 0 0 0 3px rgba(61, 220, 151, 0.1);
+}
+.prompt { color: var(--mint); font-family: var(--mono); font-size: 22px; line-height: 1; }
+
+.expr-input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: none;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 20px;
+  letter-spacing: 0.01em;
+  padding: 10px 4px;
+}
+.expr-input::placeholder { color: #46586a; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.examples { margin-top: 12px; }
+
+.chip {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12.3px;
+  font-family: var(--mono);
+  cursor: pointer;
+  transition: all 0.14s ease;
+  white-space: nowrap;
+}
+.chip:hover { color: var(--text); border-color: #2d4254; background: var(--panel-3); }
+.chip.active { color: #06150e; background: var(--mint); border-color: var(--mint); }
+
+.var-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  border-radius: 999px;
+  padding: 3px 4px 3px 12px;
+  font-family: var(--mono);
+  font-size: 12.3px;
+  color: var(--blue);
+}
+.var-chip input {
+  width: 62px;
+  background: #070c12;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12.3px;
+  padding: 2px 7px;
+  text-align: right;
+  outline: none;
+}
+.var-chip input:focus { border-color: #2f6f5b; }
+.var-chip .del {
+  appearance: none; border: 0; background: none; color: var(--muted-dim);
+  cursor: pointer; font-size: 13px; padding: 0 4px; line-height: 1;
+}
+.var-chip .del:hover { color: var(--red); }
+
+.vars-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line-soft);
+}
+.add-var { display: flex; gap: 6px; align-items: center; }
+.add-var input {
+  width: 74px;
+  background: #070c12;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12.3px;
+  padding: 5px 8px;
+  outline: none;
+}
+.add-var input:focus { border-color: #2f6f5b; }
+
+.hint { color: var(--muted-dim); font-size: 12px; }
+.hint.inline { margin-left: auto; max-width: 52ch; }
+.hint b { color: var(--muted); font-weight: 600; }
+
+/* ------------------------------------------------------------------ errors */
+.error-banner {
+  margin-top: 16px;
+  border: 1px solid #4a2230;
+  background: linear-gradient(180deg, rgba(255, 107, 129, 0.09), rgba(255, 107, 129, 0.03));
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.error-title {
+  display: flex; align-items: center; gap: 9px;
+  color: #ffb3bd; font-size: 13.5px; font-weight: 550;
+}
+.error-icon {
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 107, 129, 0.18);
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 700;
+  flex: none;
+}
+.error-source {
+  margin: 9px 0 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: #ffd7dc;
+  white-space: pre;
+  overflow-x: auto;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 8px;
+}
+.error-source .caret { color: var(--red); }
+
+/* ------------------------------------------------------------------ result */
+.result-card {
+  display: grid;
+  grid-template-columns: minmax(220px, 340px) 1fr;
+  gap: 24px;
+  align-items: center;
+}
+.result-value {
+  font-family: var(--mono);
+  font-size: clamp(30px, 4.4vw, 46px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--mint);
+  line-height: 1.1;
+  word-break: break-all;
+}
+.result-value.error { color: var(--red); font-size: clamp(20px, 2.6vw, 26px); }
+.result-sub { color: var(--muted); font-size: 12.5px; margin-top: 6px; font-family: var(--mono); }
+
+.result-side {
+  border-left: 1px solid var(--line-soft);
+  padding-left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.program-line code {
+  display: block;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--amber);
+  background: #070c12;
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  padding: 9px 12px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.stat-chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 8px; }
+.stat {
+  background: var(--panel-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.stat .k { display: block; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted-dim); }
+.stat .v { font-family: var(--mono); font-size: 14.5px; color: var(--text); }
+.stat .v.mint { color: var(--mint); }
+.stat .v.amber { color: var(--amber); }
+.stat .v.blue { color: var(--blue); }
+
+/* ------------------------------------------------------------------ viz */
+.viz-card { padding: 18px 18px 14px; }
+
+.phase-tabs { display: flex; gap: 6px; background: #070c12; padding: 4px; border-radius: 11px; border: 1px solid var(--line-soft); }
+.phase-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 560;
+  padding: 7px 13px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+}
+.phase-tab .num {
+  width: 17px; height: 17px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--panel-3);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.phase-tab.active { background: var(--panel-2); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+.phase-tab.active .num { background: var(--mint); color: #04140d; }
+.phase-tab.done .num { background: var(--mint-dim); color: #dffcef; }
+
+.playback { display: flex; align-items: center; gap: 6px; }
+
+.timeline-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 14px 2px 4px;
+}
+.timeline-track {
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: #0a1119;
+  border: 1px solid var(--line-soft);
+  overflow: hidden;
+}
+.timeline-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--blue), var(--mint));
+  border-radius: 999px;
+  transition: width 0.18s ease;
+}
+.step-counter { font-family: var(--mono); font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.viz-pane {
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.014), transparent 30%), #0a1017;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 430px;
+  transition: opacity 0.25s ease, filter 0.25s ease;
+}
+.viz-pane.dim { opacity: 0.55; filter: saturate(0.6); }
+.viz-pane.focus { opacity: 1; filter: none; border-color: #24405a; }
+
+.pane-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.pane-head h3 { margin: 0; font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; }
+.pane-hint { font-family: var(--mono); font-size: 10.8px; color: var(--muted-dim); }
+
+.token-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 8px;
+  background: #070c12;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  min-height: 46px;
+  align-content: flex-start;
+}
+.token {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text);
+  transition: all 0.16s ease;
+  white-space: pre;
+}
+.token .pos { display: none; }
+.token.done { opacity: 0.42; }
+.token.watch {
+  border-color: var(--amber);
+  color: #1c1400;
+  background: var(--amber);
+  box-shadow: 0 0 0 3px rgba(255, 200, 87, 0.15);
+  transform: translateY(-1px);
+}
+.token.implicit { border-style: dashed; }
+.token.implicit::after { content: "×"; font-size: 9px; vertical-align: super; color: var(--purple); margin-left: 1px; }
+.token.watch.implicit::after { color: #4a2c00; }
+.token.folded-token { border-color: var(--purple); color: var(--purple); }
+
+.rpn-strip .token { color: var(--mint); }
+.rpn-strip .token.watch { color: #04140d; }
+.rpn-strip .token.done { color: var(--mint-dim); }
+
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; flex: 1; }
+
+.stack-box, .queue-box, .value-box {
+  background: #070c12;
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 190px;
+}
+.stack-box h4, .queue-box h4, .value-box h4 {
+  margin: 0 0 8px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  color: var(--muted-dim);
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.stack-box h4 .sub, .queue-box h4 .sub { font-weight: 500; letter-spacing: 0.06em; color: #3f5065; text-transform: none; }
+
+.stack {
+  flex: 1;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-start;
+  gap: 5px;
+  min-height: 140px;
+  padding-bottom: 2px;
+}
+.brick {
+  font-family: var(--mono);
+  font-size: 13px;
+  text-align: center;
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px solid #2a3d51;
+  background: linear-gradient(180deg, #1a2836, #131d28);
+  color: var(--text);
+  animation: brickIn 0.18s ease;
+  flex: none;
+}
+.brick.top {
+  border-color: var(--mint);
+  color: var(--mint);
+  box-shadow: 0 0 0 2px rgba(61, 220, 151, 0.12), 0 -6px 18px -10px var(--mint);
+}
+.brick.op { border-color: #3d5a74; color: var(--blue); }
+.brick.fn { border-color: #4b3d74; color: var(--purple); }
+.brick.paren { border-color: #4a4a4a; color: var(--muted); }
+.brick.value { color: var(--amber); border-color: #5a4a1f; }
+.brick.value.top { color: var(--mint); border-color: var(--mint); }
+@keyframes brickIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.queue { display: flex; flex-wrap: wrap; gap: 5px; align-content: flex-start; }
+.queue .q-item {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: rgba(90, 169, 255, 0.09);
+  border: 1px solid #24405a;
+  color: #a8cdff;
+  animation: brickIn 0.18s ease;
+}
+.queue .q-item.fn { color: var(--purple); border-color: #40355f; background: rgba(178, 140, 255, 0.08); }
+.queue .empty, .stack .empty { color: #3b4c5f; font-size: 12px; font-family: var(--mono); padding: 6px 2px; }
+
+.value-box { align-items: stretch; justify-content: center; text-align: center; }
+.live-value {
+  font-family: var(--mono);
+  font-size: 34px;
+  font-weight: 600;
+  color: var(--mint);
+  letter-spacing: -0.02em;
+  word-break: break-all;
+}
+.live-op { font-family: var(--mono); font-size: 11.5px; color: var(--muted-dim); margin-top: 8px; }
+
+.note {
+  font-size: 12.8px;
+  color: var(--muted);
+  background: #070c12;
+  border: 1px solid var(--line-soft);
+  border-left: 2px solid var(--mint);
+  border-radius: 8px;
+  padding: 9px 12px;
+  min-height: 42px;
+}
+.note b { color: var(--text); font-weight: 600; }
+.note .action {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--amber);
+  margin-right: 7px;
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line-soft);
+  font-size: 11.5px;
+  color: var(--muted-dim);
+}
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 12px; height: 12px; border-radius: 4px; border: 1px solid var(--line); display: inline-block; }
+.sw.watch { background: var(--amber); border-color: var(--amber); }
+.sw.done { background: #33465a; }
+.sw.folded { background: rgba(178, 140, 255, 0.25); border-color: var(--purple); }
+.legend-note { margin-left: auto; }
+.legend-note b { color: var(--muted); }
+
+/* ------------------------------------------------------------------ program */
+.program-card .switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch .track {
+  width: 42px; height: 23px;
+  background: var(--panel-3);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  position: relative;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.switch .thumb {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 17px; height: 17px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+.switch input:checked + .track { background: rgba(61, 220, 151, 0.2); border-color: var(--mint-dim); }
+.switch input:checked + .track .thumb { transform: translateX(19px); background: var(--mint); }
+.switch-label { font-size: 12.5px; color: var(--muted); font-family: var(--mono); }
+
+.program-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 16px;
+}
+.program-block {
+  background: #070c12;
+  border: 1px solid var(--line-soft);
+  border-radius: 11px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.program-code {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--muted);
+  overflow-x: auto;
+  white-space: nowrap;
+  padding-bottom: 2px;
+}
+.program-block.active { border-color: #2f6f5b; box-shadow: inset 0 0 0 1px rgba(61, 220, 151, 0.16); }
+.program-block.active .program-code { color: var(--mint); }
+.instruction-count { font-family: var(--mono); font-size: 11px; color: var(--muted-dim); }
+.optimiser-note { margin: 14px 0 0; font-size: 12.6px; color: var(--muted); }
+.optimiser-note b { color: var(--amber); }
+
+/* ------------------------------------------------------------------ tree */
+.traversals { display: flex; flex-direction: column; gap: 4px; font-family: var(--mono); font-size: 11.5px; color: var(--muted-dim); }
+.traversals div span { color: var(--muted); }
+.tree-canvas {
+  margin-top: 14px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(90, 169, 255, 0.06), transparent 60%),
+    #070c12;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  padding: 10px;
+  overflow-x: auto;
+  min-height: 180px;
+}
+.tree-canvas svg { display: block; margin: 0 auto; }
+.tree-edge { stroke: #2a3f55; stroke-width: 1.4; }
+.tree-node rect { fill: #111c27; stroke: #2a3f55; rx: 8; }
+.tree-node text {
+  font-family: var(--mono);
+  font-size: 13px;
+  fill: var(--text);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+.tree-node.op rect { fill: rgba(255, 200, 87, 0.1); stroke: #6a5320; }
+.tree-node.op text { fill: var(--amber); }
+.tree-node.fn rect { fill: rgba(178, 140, 255, 0.1); stroke: #4a3a75; }
+.tree-node.fn text { fill: var(--purple); }
+.tree-node.var rect { fill: rgba(90, 169, 255, 0.1); stroke: #2b4a6b; }
+.tree-node.var text { fill: var(--blue); }
+.tree-node.num text { fill: var(--mint); }
+.tree-node.folded rect { stroke: var(--purple); stroke-dasharray: 4 3; }
+.tree-tag {
+  font-family: var(--mono);
+  font-size: 8.5px;
+  fill: var(--purple);
+  text-anchor: middle;
+}
+
+.empty-state { color: var(--muted-dim); font-size: 12.5px; margin: 8px 4px; }
+.empty-state b { color: var(--muted); }
+
+/* ------------------------------------------------------------------ grid 2 */
+.grid-2 { display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; }
+.grid-2 > .card { display: flex; flex-direction: column; }
+
+/* ------------------------------------------------------------------ bench */
+.bench-body { margin-top: 14px; display: flex; flex-direction: column; gap: 13px; }
+.bench-row {
+  border: 1px solid var(--line-soft);
+  background: #070c12;
+  border-radius: 11px;
+  padding: 11px 12px;
+}
+.bench-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.bench-label { font-size: 12.6px; color: var(--text); font-weight: 550; }
+.bench-speed { font-family: var(--mono); font-size: 13px; color: var(--mint); white-space: nowrap; }
+.bench-bars { margin-top: 9px; display: flex; flex-direction: column; gap: 6px; }
+.bench-bar { display: grid; grid-template-columns: 150px 1fr 82px; gap: 10px; align-items: center; font-size: 11px; color: var(--muted-dim); }
+.bench-bar .track { height: 7px; border-radius: 999px; background: #0d1620; overflow: hidden; }
+.bench-bar .fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+.bench-bar.slow .fill { background: linear-gradient(90deg, #6d4a55, var(--red)); }
+.bench-bar.fast .fill { background: linear-gradient(90deg, #1f7a58, var(--mint)); }
+.bench-bar .us { font-family: var(--mono); text-align: right; color: var(--muted); }
+.bench-note { margin-top: 8px; font-size: 11.4px; color: var(--muted-dim); }
+
+.scaling { margin-top: 4px; }
+.scaling h5 {
+  margin: 0 0 6px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted-dim);
+  font-weight: 600;
+}
+.scaling table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11.5px; }
+.scaling th { text-align: left; color: var(--muted-dim); font-weight: 500; padding: 3px 0; border-bottom: 1px solid var(--line-soft); }
+.scaling td { padding: 4px 0; color: var(--muted); border-bottom: 1px solid rgba(30, 43, 58, 0.5); }
+.scaling tr:last-child td { border-bottom: 0; }
+.bench-source { font-family: var(--mono); font-size: 10.5px; color: var(--muted-dim); }
+
+/* ------------------------------------------------------------------ engine */
+.engine-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+}
+.engine-metric {
+  border: 1px solid var(--line-soft);
+  background: #070c12;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.engine-metric .k { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted-dim); }
+.engine-metric .v { font-family: var(--mono); font-size: 14px; color: var(--text); }
+
+.cache-block { margin-top: 14px; }
+.cache-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.cache-item {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  background: #070c12;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  padding: 4px 7px;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cache-item:first-child { border-color: #2f6f5b; color: var(--mint); }
+.cache-empty { font-size: 11.5px; color: var(--muted-dim); font-family: var(--mono); }
+
+/* ------------------------------------------------------------------ notes */
+.notes-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; margin-top: 16px; }
+.notes-card h4 { margin: 16px 0 6px; font-size: 13px; color: var(--text); font-weight: 600; }
+.notes-card h4:first-child { margin-top: 0; }
+.notes-card p { margin: 0 0 4px; font-size: 12.8px; color: var(--muted); }
+.notes-card code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: #070c12;
+  border: 1px solid var(--line-soft);
+  border-radius: 5px;
+  padding: 1px 5px;
+  color: var(--amber);
+}
+.muted { color: var(--muted-dim); }
+.small { font-size: 11.8px; }
+
+.ds-table { margin-top: 14px; display: flex; flex-direction: column; font-size: 11.8px; }
+.ds-row {
+  display: grid;
+  grid-template-columns: 1.05fr 1.6fr 0.9fr;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11.4px;
+}
+.ds-row.head { color: var(--muted-dim); text-transform: uppercase; letter-spacing: 0.08em; font-size: 9.8px; }
+.ds-row span:last-child { text-align: right; color: var(--mint-dim); }
+.ds-row.head span:last-child { color: var(--muted-dim); }
+
+/* ------------------------------------------------------------------ footer */
+footer {
+  max-width: 1240px;
+  margin: 26px auto 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 11.8px;
+  color: var(--muted-dim);
+}
+.footer-links { display: flex; gap: 16px; align-items: center; }
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--mint); }
+
+/* ------------------------------------------------------------------ toast */
+.toast {
+  position: fixed;
+  bottom: 22px;
+  left: 50%;
+  transform: translate(-50%, 20px);
+  background: #12202c;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 12.5px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  box-shadow: 0 18px 40px -20px #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 20;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ------------------------------------------------------------------ responsive */
+@media (max-width: 1080px) {
+  .viz-grid { grid-template-columns: 1fr; }
+  .grid-2 { grid-template-columns: 1fr; }
+  .result-card { grid-template-columns: 1fr; }
+  .result-side { border-left: 0; padding-left: 0; border-top: 1px solid var(--line-soft); padding-top: 16px; }
+  .notes-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 720px) {
+  body { padding: 0 14px 32px; }
+  .card { padding: 15px; border-radius: 13px; }
+  .expr-input { font-size: 17px; }
+  .program-grid { grid-template-columns: 1fr; }
+  .hint.inline { margin-left: 0; }
+  .legend-note { margin-left: 0; }
+  .split { grid-template-columns: 1fr; }
+  .playback { width: 100%; justify-content: space-between; }
+  .bench-bar { grid-template-columns: 110px 1fr 70px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001s !important; transition-duration: 0.001s !important; }
+}
+
+</style>
+</head>
+<body>
+<div class="bg-grid" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 8 4 16l7 8" />
+        <path d="M21 8l7 8-7 8" />
+        <path d="M18.5 6.5 13.5 25.5" />
+      </svg>
+    </span>
+    <div class="brand-text">
+      <h1>VoltIQ <span>Expr</span></h1>
+      <p>Expression Solver &amp; Visualizer · stacks in action</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <span class="badge" id="engineBadge"><span class="dot"></span><span id="engineBadgeText">connecting…</span></span>
+    <button class="btn ghost" id="copyLinkBtn" title="Copy a link to this expression">Copy link</button>
+  </div>
+</header>
+
+<main>
+  <!-- ===================== input ===================== -->
+  <section class="card input-card">
+    <label class="field-label" for="exprInput">Infix expression</label>
+    <div class="input-row">
+      <span class="prompt" aria-hidden="true">&#8250;</span>
+      <input id="exprInput" class="expr-input" autocomplete="off" autocapitalize="off" spellcheck="false"
+             placeholder="type an expression, e.g. 2x^2 - 3x + 1" aria-label="Infix expression" />
+      <button class="btn primary" id="solveBtn">Solve</button>
+    </div>
+
+    <div class="chips examples" id="exampleChips"></div>
+
+    <div class="vars-row">
+      <span class="field-label small">variables</span>
+      <div class="chips" id="varChips"></div>
+      <form class="add-var" id="addVarForm" autocomplete="off">
+        <input id="newVar" placeholder="z=4" size="5" aria-label="Add a variable" />
+        <button class="btn tiny" type="submit">add</button>
+      </form>
+      <span class="hint inline">Operators <b>+ − * / % ^</b> · functions <b>sqrt sin cos abs log min max pow</b> · implicit × as in <b>2x</b> or <b>3(4+5)</b></span>
+    </div>
+
+    <div class="error-banner" id="errorBanner" hidden role="alert">
+      <div class="error-title"><span class="error-icon">!</span><span id="errorMessage"></span></div>
+      <pre class="error-source" id="errorSource"></pre>
+    </div>
+  </section>
+
+  <!-- ===================== result ===================== -->
+  <section class="card result-card" id="resultCard">
+    <div class="result-main">
+      <span class="field-label">Result</span>
+      <div class="result-value" id="resultValue">—</div>
+      <div class="result-sub" id="resultSub">waiting for input</div>
+    </div>
+    <div class="result-side">
+      <div class="program-line">
+        <span class="field-label small">compiled program</span>
+        <code id="activeProgram">—</code>
+      </div>
+      <div class="stat-chips" id="statChips"></div>
+    </div>
+  </section>
+
+  <!-- ===================== visualizer ===================== -->
+  <section class="card viz-card">
+    <div class="card-head">
+      <div class="phase-tabs" role="tablist">
+        <button class="phase-tab active" id="tabConvert" role="tab" aria-selected="true">
+          <span class="num">1</span> Infix → Postfix
+        </button>
+        <button class="phase-tab" id="tabEval" role="tab" aria-selected="false">
+          <span class="num">2</span> Postfix evaluation
+        </button>
+      </div>
+
+      <div class="playback">
+        <button class="icon-btn" id="resetBtn" title="Back to the start (Home)" aria-label="Reset">&#8634;</button>
+        <button class="icon-btn" id="prevBtn" title="Previous step (←)" aria-label="Previous step">&#9664;&#9664;</button>
+        <button class="btn primary play" id="playBtn" title="Play / pause (space)" aria-label="Play">&#9654; Play</button>
+        <button class="icon-btn" id="nextBtn" title="Next step (→)" aria-label="Next step">&#9654;&#9654;</button>
+        <button class="icon-btn" id="endBtn" title="Jump to the end (End)" aria-label="Jump to end">&#8677;</button>
+        <select id="speedSelect" class="select" aria-label="Playback speed">
+          <option value="1400">0.5×</option>
+          <option value="800" selected>1×</option>
+          <option value="420">2×</option>
+          <option value="180">4×</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="timeline-row">
+      <div class="timeline-track"><div class="timeline-fill" id="timelineFill"></div></div>
+      <span class="step-counter" id="stepCounter">step 0 / 0</span>
+    </div>
+
+    <div class="viz-grid">
+      <!-- ---------- conversion ---------- -->
+      <div class="viz-pane" id="convertPane">
+        <div class="pane-head">
+          <h3>Shunting-yard conversion</h3>
+          <span class="pane-hint" id="convertHint">reading tokens left to right</span>
+        </div>
+
+        <div class="token-strip" id="tokenStrip" aria-label="Tokens"></div>
+
+        <div class="split">
+          <div class="stack-box">
+            <h4>Operator stack <span class="sub">top ↑</span></h4>
+            <div class="stack" id="opStack"></div>
+          </div>
+          <div class="queue-box">
+            <h4>Output queue <span class="sub">postfix grows →</span></h4>
+            <div class="queue" id="outQueue"></div>
+          </div>
+        </div>
+
+        <div class="note" id="convertNote">
+          Press <b>Play</b> or step through to watch the stack push and pop.
+        </div>
+      </div>
+
+      <!-- ---------- evaluation ---------- -->
+      <div class="viz-pane dim" id="evalPane">
+        <div class="pane-head">
+          <h3>Stack-machine evaluation</h3>
+          <span class="pane-hint" id="evalHint">waiting for the postfix program</span>
+        </div>
+
+        <div class="token-strip rpn" id="rpnStrip" aria-label="Postfix program"></div>
+
+        <div class="split">
+          <div class="stack-box">
+            <h4>Operand stack <span class="sub">top ↑</span></h4>
+            <div class="stack" id="valStack"></div>
+          </div>
+          <div class="value-box">
+            <h4>Current value</h4>
+            <div class="live-value" id="liveValue">—</div>
+            <div class="live-op" id="liveOp">no operation yet</div>
+          </div>
+        </div>
+
+        <div class="note" id="evalNote">The postfix program is executed one instruction at a time.</div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><i class="sw watch"></i> current token</span>
+      <span><i class="sw done"></i> already processed</span>
+      <span><i class="sw folded"></i> folded constant</span>
+      <span class="legend-note">Stack depth is what makes postfix evaluation <b>O(n)</b>: every token is pushed or popped once.</span>
+    </div>
+  </section>
+
+  <!-- ===================== program / optimizer ===================== -->
+  <section class="card program-card">
+    <div class="card-head">
+      <div>
+        <h3 class="card-title">Compiler &amp; optimiser</h3>
+        <p class="card-sub">The expression is compiled once into a postfix program, then cached. Constant folding shortens the program before it runs.</p>
+      </div>
+      <label class="switch" title="Evaluate the constant-folded program instead of the raw one">
+        <input type="checkbox" id="foldToggle" />
+        <span class="track"><span class="thumb"></span></span>
+        <span class="switch-label">constant folding</span>
+      </label>
+    </div>
+
+    <div class="program-grid">
+      <div class="program-block">
+        <span class="field-label small">shunting-yard output</span>
+        <code class="program-code" id="rawProgram">—</code>
+        <span class="instruction-count" id="rawCount">0 instructions</span>
+      </div>
+      <div class="program-block">
+        <span class="field-label small">after constant folding</span>
+        <code class="program-code" id="foldedProgram">—</code>
+        <span class="instruction-count" id="foldedCount">0 instructions</span>
+      </div>
+    </div>
+
+    <p class="optimiser-note" id="optimiserNote"></p>
+  </section>
+
+  <!-- ===================== tree ===================== -->
+  <section class="card tree-card">
+    <div class="card-head">
+      <div>
+        <h3 class="card-title">Expression tree</h3>
+        <p class="card-sub">Built from the postfix program with a node stack — the shape the optimiser folds.</p>
+      </div>
+      <div class="traversals" id="traversals"></div>
+    </div>
+    <div class="tree-canvas" id="treeCanvas">
+      <p class="empty-state">The tree appears once the expression parses.</p>
+    </div>
+  </section>
+
+  <!-- ===================== benchmarks + cache ===================== -->
+  <section class="grid-2">
+    <section class="card bench-card">
+      <div class="card-head">
+        <div>
+          <h3 class="card-title">Benchmarks</h3>
+          <p class="card-sub">Why compiling once and folding constants is worth it.</p>
+        </div>
+        <button class="btn ghost small" id="benchBtn">Run</button>
+      </div>
+      <div id="benchBody" class="bench-body">
+        <p class="empty-state">Press <b>Run</b> to time the cached + folded pipeline against the naive one.</p>
+      </div>
+    </section>
+
+    <section class="card engine-card">
+      <div class="card-head">
+        <div>
+          <h3 class="card-title">Engine state</h3>
+          <p class="card-sub">Live counters from the C++ process.</p>
+        </div>
+        <button class="btn ghost small" id="resetEngineBtn" title="Clear variables and the LRU cache">Reset</button>
+      </div>
+      <div class="engine-grid" id="engineGrid"></div>
+      <div class="cache-block">
+        <span class="field-label small">LRU cache — most recent first</span>
+        <div class="cache-list" id="cacheList"></div>
+      </div>
+    </section>
+  </section>
+
+  <!-- ===================== notes ===================== -->
+  <section class="card notes-card">
+    <h3 class="card-title">How it works</h3>
+    <div class="notes-grid">
+      <div>
+        <h4>1 · Tokenizer</h4>
+        <p>One left-to-right pass turns the text into tokens and validates the grammar. It even inserts the multiplication nobody typed: <code>2x</code> → <code>2 · x</code>, <code>3(4+5)</code> → <code>3 · (4+5)</code>.</p>
+        <h4>2 · Shunting-yard (Dijkstra)</h4>
+        <p>Operands go straight to the output queue; operators wait on a stack and are popped when a lower-precedence operator arrives. Parentheses mark groups, functions pop after their arguments.</p>
+        <h4>3 · Postfix evaluation</h4>
+        <p>Pure stack machine: a number is pushed, an operator pops its operands and pushes the result. No parentheses, no precedence — that is exactly why postfix exists.</p>
+      </div>
+      <div>
+        <h4>4 · Optimisation</h4>
+        <p>The postfix program is parsed into an expression tree. Any subtree made only of literals is evaluated at compile time and replaced by a single constant. The shorter program is cached in an LRU cache keyed by source text, so re-evaluating skips lexing and parsing entirely.</p>
+        <div class="ds-table">
+          <div class="ds-row head"><span>Structure</span><span>Used for</span><span>Cost</span></div>
+          <div class="ds-row"><span>Array stack</span><span>operators, operands</span><span>push/pop O(1)</span></div>
+          <div class="ds-row"><span>Ring queue</span><span>token stream, output</span><span>enqueue O(1)</span></div>
+          <div class="ds-row"><span>Binary tree</span><span>expression tree, folding</span><span>O(n) build</span></div>
+          <div class="ds-row"><span>Hash map</span><span>variables (open addressing)</span><span>O(1) avg</span></div>
+          <div class="ds-row"><span>LRU cache</span><span>compiled programs</span><span>O(1) get/put</span></div>
+        </div>
+        <p class="muted small">Everything above is written from scratch in C++17 — no <code>std::stack</code>, <code>std::queue</code>, <code>std::unordered_map</code> or <code>std::list</code>.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span>VoltIQ Expr · C++17 engine, hand-written data structures, zero dependencies.</span>
+  <span class="footer-links"><a href="hospital.html">VoltIQ Care demo ↗</a>
+    <a href="https://github.com/swaruppatil0309/VoltIQ-Electricity-Analytics" target="_blank" rel="noopener">GitHub</a>
+    <button class="linkish" id="footerBench">benchmarks</button>
+    <button class="linkish" id="footerHelp">keyboard shortcuts</button>
+  </span>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ==========================================================================
+   engine.js — JavaScript mirror of the C++17 expression engine.
+
+   The C++ implementation in ../cpp is the canonical one; this file exists so
+   the dashboard can also run as a single HTML file with no server at all.
+   It reproduces byte-for-byte the same JSON that `xpr serve` returns, which is
+   verified by tests/parity.js.
+
+   Pipeline: tokenize → shunting-yard (trace) → AST → constant folding →
+   optimised postfix → stack-machine evaluation (trace).
+   ========================================================================== */
+(function (root, factory) {
+  const api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  root.VoltIQEngine = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+
+  const K_UNARY_PREC = 3;
+
+  const FUNCTIONS = {
+    sin: 1, cos: 1, tan: 1, asin: 1, acos: 1, atan: 1,
+    sqrt: 1, cbrt: 1, abs: 1, log: 1, ln: 1, log10: 1,
+    exp: 1, floor: 1, ceil: 1, round: 1, sign: 1,
+    min: 2, max: 2, pow: 2, mod: 2
+  };
+
+  function precedenceOf(op) {
+    if (op === '+' || op === '-') return 1;
+    if (op === '*' || op === '/' || op === '%') return 2;
+    if (op === '^') return 4;
+    return 0;
+  }
+
+  function isRightAssoc(op) { return op === '^'; }
+  function isOperatorChar(c) { return '+-*/%^'.indexOf(c) >= 0; }
+  function isDigit(c) { return c >= '0' && c <= '9'; }
+  function isAlpha(c) { return /[A-Za-z_]/.test(c); }
+  function isIdentChar(c) { return /[A-Za-z0-9_]/.test(c); }
+  function isSpace(c) { return /\s/.test(c); }
+
+  function formatNumber(v) {
+    if (v === 0) return '0';
+    if (!isFinite(v)) {
+      if (isNaN(v)) return 'NaN';
+      return v > 0 ? 'Infinity' : '-Infinity';
+    }
+    if (Math.abs(v) < 1e15 && Number.isInteger(v)) return String(v);
+    let s = v.toPrecision(12);
+    if (s.indexOf('e') < 0) {
+      if (s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+      return s;
+    }
+    // normalise "1.50000000000e+21" → "1.5e+21"
+    const parts = s.split('e');
+    let mantissa = parts[0];
+    if (mantissa.indexOf('.') >= 0) mantissa = mantissa.replace(/0+$/, '').replace(/\.$/, '');
+    return mantissa + 'e' + parts[1];
+  }
+
+  function tokenTypeName(t) {
+    return t;
+  }
+
+  function tokenLabel(t) {
+    if (t.type === 'operator') return t.unary ? t.text + ' (unary)' : t.text;
+    if (t.type === 'function') return t.text + '()';
+    return t.text;
+  }
+
+  function makeToken(fields) {
+    return Object.assign({
+      type: 'number', text: '', value: 0, op: '', prec: 0, rightAssoc: false,
+      unary: false, implicit: false, folded: false, pos: 0, len: 0, arity: 1
+    }, fields);
+  }
+
+  // =========================================================================
+  // tokenizer (mirrors cpp/tokenizer.hpp)
+  // =========================================================================
+  function tokenize(src) {
+    const n = src.length;
+    let i = 0;
+    let expectOperand = true;
+    let openParens = 0;
+    const tokens = [];
+    let implicitInserts = 0;
+
+    function fail(error, errorPos, errorLen) {
+      return { ok: false, error, errorPos, errorLen: errorLen < 1 ? 1 : errorLen, tokens, implicitInserts };
+    }
+    function implicitMul(pos) {
+      tokens.push(makeToken({ type: 'operator', text: '*', op: '*', prec: precedenceOf('*'), implicit: true, pos, len: 0 }));
+      implicitInserts++;
+    }
+
+    while (i < n) {
+      const c = src[i];
+      if (isSpace(c)) { i++; continue; }
+
+      // number
+      if (isDigit(c) || (c === '.' && i + 1 < n && isDigit(src[i + 1]))) {
+        const m = /^[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?/.exec(src.slice(i));
+        const text = m ? m[0] : c;
+        if (!expectOperand) return fail('unexpected number — two values in a row', i, text.length);
+        tokens.push(makeToken({ type: 'number', text, value: parseFloat(text), pos: i, len: text.length }));
+        i += text.length;
+        expectOperand = false;
+        continue;
+      }
+
+      // identifier
+      if (isAlpha(c)) {
+        const start = i;
+        while (i < n && isIdentChar(src[i])) i++;
+        const name = src.slice(start, i);
+        let j = i;
+        while (j < n && isSpace(src[j])) j++;
+        const arity = FUNCTIONS[name];
+        const call = j < n && src[j] === '(' && arity !== undefined;
+        if (!expectOperand) implicitMul(start);
+        if (call) {
+          tokens.push(makeToken({ type: 'function', text: name, arity, prec: 5, pos: start, len: name.length }));
+          expectOperand = true;
+        } else {
+          tokens.push(makeToken({ type: 'variable', text: name, pos: start, len: name.length }));
+          expectOperand = false;
+        }
+        continue;
+      }
+
+      // (
+      if (c === '(') {
+        if (!expectOperand) implicitMul(i);
+        tokens.push(makeToken({ type: 'lparen', text: '(', pos: i, len: 1 }));
+        openParens++;
+        i++;
+        expectOperand = true;
+        continue;
+      }
+
+      // )
+      if (c === ')') {
+        if (expectOperand) return fail(tokens.length ? "expected a value before ')'" : 'empty parentheses', i, 1);
+        if (openParens === 0) return fail("unmatched ')'", i, 1);
+        tokens.push(makeToken({ type: 'rparen', text: ')', pos: i, len: 1 }));
+        openParens--;
+        i++;
+        expectOperand = false;
+        continue;
+      }
+
+      // ,
+      if (c === ',') {
+        if (expectOperand) return fail("expected a value before ','", i, 1);
+        tokens.push(makeToken({ type: 'comma', text: ',', pos: i, len: 1 }));
+        i++;
+        expectOperand = true;
+        continue;
+      }
+
+      // operators
+      if (isOperatorChar(c)) {
+        if (expectOperand) {
+          if (c !== '+' && c !== '-') return fail("operator '" + c + "' needs a value on its left", i, 1);
+          tokens.push(makeToken({
+            type: 'operator', text: c, op: c, unary: true,
+            prec: K_UNARY_PREC, rightAssoc: true, pos: i, len: 1
+          }));
+          i++;
+          continue;
+        }
+        tokens.push(makeToken({
+          type: 'operator', text: c, op: c, prec: precedenceOf(c),
+          rightAssoc: isRightAssoc(c), pos: i, len: 1
+        }));
+        i++;
+        expectOperand = true;
+        continue;
+      }
+
+      return fail("unexpected character '" + c + "'", i, 1);
+    }
+
+    if (tokens.length === 0) return fail('expression is empty', 0, 1);
+    if (openParens > 0) {
+      let pos = 0;
+      for (const t of tokens) if (t.type === 'lparen') pos = t.pos;
+      return fail("unclosed '(' — add a matching ')'", pos, 1);
+    }
+    if (expectOperand) {
+      const last = tokens[tokens.length - 1];
+      return fail('expression ends where a value was expected', last.pos, last.len);
+    }
+    return { ok: true, error: '', errorPos: 0, errorLen: 1, tokens, implicitInserts };
+  }
+
+  function normalizedText(tokens) {
+    return tokens.map(t => t.implicit ? '·' : t.text).join(' ');
+  }
+
+  function rpnText(rpn) {
+    return rpn.map(t => {
+      if (t.type === 'function') return t.text + '()';
+      if (t.unary) return t.text + 'u';
+      return t.text;
+    }).join(' ');
+  }
+
+  // =========================================================================
+  // shunting-yard (mirrors cpp/shunting_yard.hpp)
+  // =========================================================================
+  function stackLabel(t) {
+    if (t.type === 'function') return t.text + '()';
+    if (t.type === 'lparen') return '(';
+    if (t.type === 'operator' && t.unary) return t.text + 'u';
+    return t.text;
+  }
+
+  function shunting(tokens, wantTrace) {
+    const ops = [];
+    const argCounts = [];
+    const out = [];
+    const steps = [];
+    let peakStack = 0;
+
+    function snapshot() {
+      const stack = ops.map(stackLabel);
+      const output = out.map(t => t.text);
+      if (ops.length > peakStack) peakStack = ops.length;
+      return { stack, output };
+    }
+
+    function record(token, action, note, tokenIndex) {
+      if (!wantTrace) return;
+      const shot = snapshot();
+      steps.push({
+        step: steps.length + 1, token, action, note,
+        stack: shot.stack, output: shot.output, tokenIndex
+      });
+    }
+
+    function fail(error, errorPos) {
+      return { ok: false, error, errorPos, rpn: out, steps, peakStack };
+    }
+
+    for (let ti = 0; ti < tokens.length; ti++) {
+      const t = tokens[ti];
+      const label = t.implicit ? '* (implicit)' : tokenLabel(t);
+
+      if (t.type === 'number' || t.type === 'variable') {
+        out.push(t);
+        record(label, 'output', 'operand → output queue', ti);
+        continue;
+      }
+
+      if (t.type === 'function') {
+        ops.push(t);
+        record(label, 'push', 'function waits on the stack for its arguments', ti);
+        continue;
+      }
+
+      if (t.type === 'comma') {
+        if (!ops.length) return fail("',' outside a function call", t.pos);
+        while (ops.length && ops[ops.length - 1].type !== 'lparen') {
+          out.push(ops.pop());
+          record('', 'pop', "',' closes the previous argument: pop until '('", ti);
+        }
+        if (!ops.length || !argCounts.length) return fail("',' outside a function call", t.pos);
+        argCounts[argCounts.length - 1] += 1;
+        record(label, 'comma', 'argument boundary recorded', ti);
+        continue;
+      }
+
+      if (t.type === 'lparen') {
+        ops.push(t);
+        argCounts.push(0);
+        record(label, 'push', 'left parenthesis marks the start of a group', ti);
+        continue;
+      }
+
+      if (t.type === 'rparen') {
+        while (ops.length && ops[ops.length - 1].type !== 'lparen') {
+          out.push(ops.pop());
+          record('', 'pop', "')' forces pending operators out to the output", ti);
+        }
+        if (!ops.length) return fail("unmatched ')'", t.pos);
+        ops.pop();
+        const commas = argCounts.length ? argCounts.pop() : 0;
+        record(label, 'match', "parenthesis matched — '(' is discarded", ti);
+
+        if (ops.length && ops[ops.length - 1].type === 'function') {
+          const fn = ops.pop();
+          const args = commas + 1;
+          if (args !== fn.arity) {
+            return fail(fn.text + '() expects ' + fn.arity + (fn.arity === 1 ? ' argument' : ' arguments') +
+              ' but got ' + args, fn.pos);
+          }
+          out.push(fn);
+          record(fn.text + '()', 'output', 'arguments are complete — the function moves to the output', ti);
+        }
+        continue;
+      }
+
+      // binary / unary operator
+      const prec = t.unary ? K_UNARY_PREC : t.prec;
+      while (!t.unary && ops.length) {
+        const top = ops[ops.length - 1];
+        if (top.type === 'function') {
+          out.push(ops.pop());
+          record('', 'pop', 'functions bind tightest — pop it first', ti);
+          continue;
+        }
+        if (top.type !== 'operator') break;
+        const topPrec = top.unary ? K_UNARY_PREC : top.prec;
+        const shouldPop = topPrec > prec || (topPrec === prec && !t.rightAssoc);
+        if (!shouldPop) break;
+        out.push(ops.pop());
+        record('', 'pop', "operator '" + stackLabel(out[out.length - 1]) +
+          "' binds tighter or is left-associative — pop it first", ti);
+      }
+      ops.push(t);
+      record(label, 'push', t.unary ? 'unary operator waits on the stack'
+        : "'" + t.op + "' waits: higher precedence stays on top", ti);
+    }
+
+    while (ops.length) {
+      if (ops[ops.length - 1].type === 'lparen') return fail("unclosed '('", ops[ops.length - 1].pos);
+      out.push(ops.pop());
+      record('', 'pop', 'end of input — flush the remaining stack', -1);
+    }
+    if (wantTrace) snapshot();
+    return { ok: true, error: '', errorPos: 0, rpn: out, steps, peakStack };
+  }
+
+  // =========================================================================
+  // expression tree + constant folding (mirrors cpp/ast.hpp)
+  // =========================================================================
+  function applyOp(op, unary, a, b) {
+    if (unary) return op === '-' ? -b : b;
+    switch (op) {
+      case '+': return a + b;
+      case '-': return a - b;
+      case '*': return a * b;
+      case '/': return a / b;
+      case '%': return a % b;
+      case '^': return Math.pow(a, b);
+      default: return 0;
+    }
+  }
+
+  function applyFunction(name, args, arity) {
+    const a = args[0];
+    const b = arity > 1 ? args[1] : 0;
+    switch (name) {
+      case 'sin': return Math.sin(a);
+      case 'cos': return Math.cos(a);
+      case 'tan': return Math.tan(a);
+      case 'asin': return Math.asin(a);
+      case 'acos': return Math.acos(a);
+      case 'atan': return Math.atan(a);
+      case 'sqrt': return Math.sqrt(a);
+      case 'cbrt': return Math.cbrt(a);
+      case 'abs': return Math.abs(a);
+      case 'log': case 'ln': return Math.log(a);
+      case 'log10': return Math.log10(a);
+      case 'exp': return Math.exp(a);
+      case 'floor': return Math.floor(a);
+      case 'ceil': return Math.ceil(a);
+      case 'round': return Math.round(a);
+      case 'sign': return Math.sign(a);
+      case 'min': return Math.min(a, b);
+      case 'max': return Math.max(a, b);
+      case 'pow': return Math.pow(a, b);
+      case 'mod': return a % b;
+      default: return NaN;
+    }
+  }
+
+  function buildAst(rpn) {
+    const nodes = [];
+    const st = [];
+    function add(n) { nodes.push(n); return nodes.length - 1; }
+
+    for (const t of rpn) {
+      if (t.type === 'number' || t.type === 'variable') {
+        st.push(add({
+          type: t.type, name: t.text, text: t.text, value: t.value, op: '', unary: false,
+          implicit: false, left: -1, right: -1, pos: t.pos, len: t.len, folded: false, foldText: ''
+        }));
+      } else if (t.type === 'operator') {
+        const n = {
+          type: 'operator', name: '', text: '', value: 0, op: t.op, unary: !!t.unary,
+          implicit: !!t.implicit, left: -1, right: -1, pos: t.pos, len: t.len, folded: false, foldText: ''
+        };
+        if (st.length) n.right = st.pop();
+        if (t.unary) { n.left = n.right; n.right = -1; }
+        else if (st.length) n.left = st.pop();
+        st.push(add(n));
+      } else if (t.type === 'function') {
+        const n = {
+          type: 'function', name: t.text, text: '', value: 0, op: '', unary: false,
+          implicit: false, left: -1, right: -1, pos: t.pos, len: t.len, folded: false, foldText: ''
+        };
+        if (t.arity === 2) {
+          if (st.length) n.right = st.pop();
+          if (st.length) n.left = st.pop();
+        } else if (st.length) {
+          n.left = st.pop();
+        }
+        st.push(add(n));
+      }
+    }
+    return { nodes, root: st.length ? st[st.length - 1] : -1, foldedNodes: 0 };
+  }
+
+  function foldNode(tree, idx) {
+    if (idx < 0) return false;
+    const n = tree.nodes[idx];
+    if (n.type === 'number') return true;
+    if (n.type === 'variable') return false;
+
+    const leftConst = foldNode(tree, n.left);
+    const rightConst = n.right >= 0 ? foldNode(tree, n.right) : true;
+    if (!leftConst || !rightConst) return false;
+
+    const a = n.left >= 0 ? tree.nodes[n.left].value : 0;
+    const b = n.right >= 0 ? tree.nodes[n.right].value : 0;
+    let result = 0;
+
+    if (n.type === 'operator') {
+      if (!n.unary && (n.op === '/' || n.op === '%') && b === 0) return false;
+      result = n.unary ? applyOp(n.op, true, 0, a) : applyOp(n.op, false, a, b);
+    } else if (n.type === 'function') {
+      result = applyFunction(n.name, [a, b], n.right >= 0 ? 2 : 1);
+    } else {
+      return false;
+    }
+    if (!isFinite(result)) return false;
+
+    n.type = 'number';
+    n.value = result;
+    n.folded = true;
+    n.left = n.right = -1;
+    tree.foldedNodes++;
+    return true;
+  }
+
+  function emitRpn(tree, idx, out) {
+    if (idx < 0) return;
+    const n = tree.nodes[idx];
+    if (n.type === 'number') {
+      out.push(makeToken({
+        type: 'number', text: formatNumber(n.value), value: n.value,
+        pos: n.pos, len: n.len, folded: !!n.folded, implicit: false
+      }));
+      return;
+    }
+    if (n.type === 'variable') {
+      out.push(makeToken({ type: 'variable', text: n.name, pos: n.pos, len: n.len }));
+      return;
+    }
+    emitRpn(tree, n.left, out);
+    emitRpn(tree, n.right, out);
+    out.push(makeToken({
+      type: n.type,
+      text: n.type === 'function' ? n.name : n.op,
+      op: n.op, unary: !!n.unary, implicit: !!n.implicit,
+      arity: n.type === 'function' ? (n.right >= 0 ? 2 : 1) : 1,
+      prec: n.type === 'function' ? 5 : (n.unary ? K_UNARY_PREC : precedenceOf(n.op)),
+      pos: n.pos, len: n.len
+    }));
+  }
+
+  function astInfix(tree, idx) {
+    if (idx < 0) return '';
+    const n = tree.nodes[idx];
+    if (n.type === 'number') return (n.folded || !n.text) ? formatNumber(n.value) : n.text;
+    if (n.type === 'variable') return n.name;
+    if (n.type === 'operator' && n.unary) return n.op + astInfix(tree, n.left);
+    if (n.type === 'function') {
+      if (n.right >= 0) return n.name + '(' + astInfix(tree, n.left) + ', ' + astInfix(tree, n.right) + ')';
+      return n.name + '(' + astInfix(tree, n.left) + ')';
+    }
+    return '(' + astInfix(tree, n.left) + ' ' + n.op + ' ' + astInfix(tree, n.right) + ')';
+  }
+
+  function astPrefix(tree, idx) {
+    if (idx < 0) return '';
+    const n = tree.nodes[idx];
+    if (n.type === 'number') return (n.folded || !n.text) ? formatNumber(n.value) : n.text;
+    if (n.type === 'variable') return n.name;
+    if (n.type === 'operator' && n.unary) return n.op + ' ' + astPrefix(tree, n.left);
+    if (n.type === 'function') {
+      let args = astPrefix(tree, n.left);
+      if (n.right >= 0) args += ' ' + astPrefix(tree, n.right);
+      return n.name + (args ? ' ' + args : '');
+    }
+    return n.op + ' ' + astPrefix(tree, n.left) + ' ' + astPrefix(tree, n.right);
+  }
+
+  function astCount(tree, idx) {
+    if (idx < 0) return 0;
+    const n = tree.nodes[idx];
+    return 1 + astCount(tree, n.left) + astCount(tree, n.right);
+  }
+
+  function astHeight(tree, idx) {
+    if (idx < 0) return 0;
+    const n = tree.nodes[idx];
+    const l = astHeight(tree, n.left);
+    const r = astHeight(tree, n.right);
+    return 1 + Math.max(l, r);
+  }
+
+  // =========================================================================
+  // postfix evaluation (mirrors cpp/evaluator.hpp)
+  // =========================================================================
+  function evalRpn(rpn, vars, wantTrace) {
+    const stack = [];
+    const trace = [];
+    let peakStack = 0;
+    let opsApplied = 0;
+
+    function record(tokenIndex, token, action, note, value) {
+      if (!wantTrace) return;
+      if (stack.length > peakStack) peakStack = stack.length;
+      trace.push({
+        step: trace.length + 1, tokenIndex, token, action, note, value,
+        stack: stack.map(formatNumber)
+      });
+    }
+    function fail(error, errorPos) {
+      return { ok: false, error, errorPos, value: 0, peakStack, opsApplied, trace };
+    }
+
+    for (let i = 0; i < rpn.length; i++) {
+      const t = rpn[i];
+      const label = t.type === 'function' ? t.text + '()' : (t.implicit ? '* (implicit)' : tokenLabel(t));
+
+      if (t.type === 'number') {
+        stack.push(t.value);
+        record(i, label, 'push', 'push the literal value', formatNumber(t.value));
+        continue;
+      }
+      if (t.type === 'variable') {
+        if (!Object.prototype.hasOwnProperty.call(vars, t.text)) {
+          return fail("unknown variable '" + t.text + "' — give it a value first", t.pos);
+        }
+        const v = vars[t.text];
+        stack.push(v);
+        record(i, label, 'push', 'look the variable up in the hash map and push its value', formatNumber(v));
+        continue;
+      }
+      if (t.type === 'operator') {
+        const need = t.unary ? 1 : 2;
+        if (stack.length < need) return fail("operator '" + t.op + "' is missing an operand", t.pos);
+        const b = stack.pop();
+        const a = t.unary ? 0 : stack.pop();
+        if (!t.unary && (t.op === '/' || t.op === '%') && b === 0) {
+          return fail(t.op === '/' ? 'division by zero' : 'modulo by zero', t.pos);
+        }
+        const result = applyOp(t.op, t.unary, a, b);
+        stack.push(result);
+        opsApplied++;
+        const note = t.unary
+          ? "unary '" + t.op + "' applied to " + formatNumber(b)
+          : formatNumber(a) + ' ' + t.op + ' ' + formatNumber(b) + ' = ' + formatNumber(result);
+        record(i, label, 'apply', note, formatNumber(result));
+        continue;
+      }
+      if (t.type === 'function') {
+        const arity = t.arity > 0 ? t.arity : 1;
+        if (stack.length < arity) return fail('function ' + t.text + '() is missing an argument', t.pos);
+        const args = [];
+        for (let k = arity - 1; k >= 0; k--) args.unshift(stack.pop());
+        const result = applyFunction(t.text, args, arity);
+        if (isNaN(result) && !(args.every(x => isNaN(x)))) {
+          // keep NaN results (sqrt(-1)) — they are legitimate answers
+        }
+        stack.push(result);
+        opsApplied++;
+        let call = t.text + '(' + formatNumber(args[0]);
+        if (arity === 2) call += ', ' + formatNumber(args[1]);
+        call += ') = ' + formatNumber(result);
+        record(i, label, 'function', call, formatNumber(result));
+        continue;
+      }
+    }
+
+    if (stack.length === 0) return fail('the expression produced no value', 0);
+    if (stack.length > 1) {
+      return fail(stack.length + ' values left on the stack — expression is incomplete', 0);
+    }
+    if (wantTrace) {
+      // final snapshot so the last frame shows the single remaining value
+      if (stack.length > peakStack) peakStack = stack.length;
+    }
+    return { ok: true, error: '', errorPos: 0, value: stack[stack.length - 1], peakStack, opsApplied, trace };
+  }
+
+  // =========================================================================
+  // engine (mirrors cpp/engine.hpp)
+  // =========================================================================
+  function Engine(capacity) {
+    this.capacity = capacity || 64;
+    this.vars = Object.create(null);
+    this.cache = new Map();  // insertion order == LRU order (we re-insert on hit)
+    this.folding = false;
+    this.stats = {
+      compiles: 0, cacheHits: 0, cacheMisses: 0, evals: 0,
+      foldedConstants: 0, tokensLexed: 0, lastCompileUs: 0, lastEvalUs: 0
+    };
+  }
+
+  Engine.prototype.setVar = function (name, value) { this.vars[name] = value; };
+  Engine.prototype.clearVars = function () { this.vars = Object.create(null); };
+  Engine.prototype.setFolding = function (on) {
+    if (this.folding === on) return;
+    this.folding = on;
+    this.cache.clear();
+  };
+  Engine.prototype.resetCache = function () { this.cache.clear(); };
+
+  Engine.prototype.cacheGet = function (key) {
+    if (!this.cache.has(key)) return null;
+    const value = this.cache.get(key);
+    this.cache.delete(key);
+    this.cache.set(key, value);  // most recently used
+    return value;
+  };
+  Engine.prototype.cachePut = function (key, value) {
+    if (this.cache.has(key)) this.cache.delete(key);
+    this.cache.set(key, value);
+    while (this.cache.size > this.capacity) this.cache.delete(this.cache.keys().next().value);
+  };
+
+  Engine.prototype.compile = function (expr) {
+    const tk = tokenize(expr);
+    if (!tk.ok) {
+      return {
+        ok: false, error: tk.error, errorPos: tk.errorPos, errorLen: tk.errorLen,
+        expr, tokens: tk.tokens || []
+      };
+    }
+    const cv = shunting(tk.tokens, false);
+    if (!cv.ok) {
+      return {
+        ok: false, error: cv.error, errorPos: cv.errorPos, errorLen: 1,
+        expr, tokens: tk.tokens, implicitMuls: tk.implicitInserts
+      };
+    }
+
+    const rawTree = buildAst(cv.rpn);
+    const foldedTree = JSON.parse(JSON.stringify(rawTree));
+    foldNode(foldedTree, foldedTree.root);
+
+    const foldedRpn = [];
+    emitRpn(foldedTree, foldedTree.root, foldedRpn);
+
+    return {
+      ok: true, expr,
+      tokens: tk.tokens,
+      implicitMuls: tk.implicitInserts,
+      normalized: normalizedText(tk.tokens),
+      rawRpn: cv.rpn,
+      foldedRpn,
+      foldedTree,
+      foldedSubtrees: foldedTree.foldedNodes,
+      foldedInstructions: cv.rpn.length - foldedRpn.length,
+      peakOpStack: cv.peakStack,
+      foldingActive: this.folding,
+      tree: this.folding ? foldedTree : rawTree,
+      rpn: this.folding ? foldedRpn : cv.rpn
+    };
+  };
+
+  // JSON shape must match cpp/main.cpp:jsonTokens exactly
+  function serializeTokens(tokens) {
+    return tokens.map((t, i) => ({
+      i,
+      text: t.implicit ? '\u00b7' : t.text,
+      type: t.type,
+      pos: t.pos,
+      len: t.len,
+      prec: t.unary ? K_UNARY_PREC : t.prec,
+      implicit: !!t.implicit,
+      folded: !!t.folded,
+      unary: !!t.unary,
+      arity: t.arity,
+      value: t.value
+    }));
+  }
+
+  Engine.prototype.analyze = function (expr, wantTrace) {
+    const started = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    if (wantTrace === undefined) wantTrace = true;
+    if (expr.length > 2000) wantTrace = false;
+
+    let program = this.cacheGet(expr);
+    let hit = !!program;
+    if (hit) {
+      this.stats.cacheHits++;
+    } else {
+      this.stats.cacheMisses++;
+      program = this.compile(expr);
+      this.cachePut(expr, program);
+      if (program.ok) {
+        this.stats.compiles++;
+        this.stats.foldedConstants += program.foldedInstructions;
+        this.stats.tokensLexed += program.tokens.length;
+      }
+    }
+
+    const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    const analysis = {
+      ok: false, expr, normalized: '', tokens: [], foldingActive: false, foldedRpn: [],
+      convert: { ok: false, rpn: '', peakStack: 0, steps: [] },
+      eval: { ok: false, value: null, valueText: '', peakStack: 0, opsApplied: 0, steps: [] },
+      ast: { root: -1, nodeCount: 0, height: 0, foldedNodes: 0, prefix: '', infix: '', nodes: [] },
+      stats: {},
+      engine: null,
+      error: null
+    };
+
+    if (!program.ok) {
+      analysis.ok = false;
+      analysis.tokens = serializeTokens(program.tokens || []);
+      analysis.program = {
+        raw: rpnText(program.rawRpn || []), active: rpnText(program.rpn || []),
+        folded: rpnText(program.foldedRpn || []), foldingActive: !!program.foldingActive
+      };
+      analysis.error = { message: program.error, pos: program.errorPos || 0, len: program.errorLen || 1 };
+      analysis.stats = this.statsFor(analysis, program, hit, now() - started, 0);
+      analysis.engine = this.state();
+      return analysis;
+    }
+
+    analysis.tokens = serializeTokens(program.tokens);
+    analysis.program = {
+      raw: rpnText(program.rawRpn), active: rpnText(program.rpn),
+      folded: rpnText(program.foldedRpn), foldingActive: !!program.foldingActive
+    };
+    analysis.normalized = program.normalized;
+    analysis.foldingActive = program.foldingActive;
+    analysis.foldedRpn = program.foldedRpn;
+
+    analysis.convert = wantTrace
+      ? (() => {
+          const c = shunting(program.tokens, true);
+          return { ok: c.ok, rpn: rpnText(c.rpn), peakStack: c.peakStack, steps: c.steps };
+        })()
+      : { ok: true, rpn: rpnText(program.rawRpn), peakStack: program.peakOpStack, steps: [] };
+
+    const evalStart = now();
+    const ev = evalRpn(program.rpn, this.vars, wantTrace);
+    const evalUs = (now() - evalStart) * 1000;
+    this.stats.evals++;
+    this.stats.lastEvalUs = evalUs;
+
+    analysis.eval = {
+      ok: ev.ok,
+      value: ev.ok ? ev.value : null,
+      valueText: ev.ok ? formatNumber(ev.value) : '',
+      peakStack: ev.peakStack,
+      opsApplied: ev.opsApplied,
+      steps: ev.trace
+    };
+
+    if (!ev.ok) {
+      analysis.ok = false;
+      analysis.error = { message: ev.error, pos: ev.errorPos, len: 1 };
+    } else {
+      analysis.ok = true;
+    }
+
+    analysis.ast = {
+      root: program.tree.root,
+      nodeCount: astCount(program.tree, program.tree.root),
+      height: astHeight(program.tree, program.tree.root),
+      foldedNodes: program.tree.foldedNodes,
+      prefix: astPrefix(program.tree, program.tree.root),
+      infix: astInfix(program.tree, program.tree.root),
+      nodes: program.tree.nodes.map((n, id) => ({
+        id,
+        type: n.type,
+        label: n.type === 'number' ? ((n.folded || !n.text) ? formatNumber(n.value) : n.text)
+          : n.type === 'variable' ? n.name
+            : n.type === 'function' ? n.name
+              : (n.unary ? n.op + 'u' : n.op),
+        left: n.left, right: n.right, folded: !!n.folded, unary: !!n.unary,
+        implicit: !!n.implicit, pos: n.pos
+      }))
+    };
+
+    analysis.stats = this.statsFor(analysis, program, hit, now() - started, evalUs);
+    analysis.engine = this.state();
+    return analysis;
+  };
+
+  Engine.prototype.statsFor = function (analysis, program, hit, compileMs, evalUs) {
+    const raw = program.rawRpn ? program.rawRpn.length : 0;
+    const active = program.rpn ? program.rpn.length : 0;
+    return {
+      tokens: program.tokens ? program.tokens.length : 0,
+      rawInstructions: raw,
+      instructions: active,
+      foldedConstants: analysis.foldingActive ? (program.foldedInstructions || 0) : (program.foldedInstructions || 0),
+      foldedSubtrees: program.foldedSubtrees || 0,
+      implicitMuls: program.implicitMuls || 0,
+      astNodes: analysis.ast ? analysis.ast.nodeCount : 0,
+      astHeight: analysis.ast ? analysis.ast.height : 0,
+      peakOpStack: analysis.convert ? analysis.convert.peakStack : 0,
+      peakEvalStack: analysis.eval ? analysis.eval.peakStack : 0,
+      traceSteps: (analysis.convert.steps ? analysis.convert.steps.length : 0) +
+        (analysis.eval.steps ? analysis.eval.steps.length : 0),
+      opsApplied: analysis.eval ? analysis.eval.opsApplied : 0,
+      compileUs: hit ? 0 : compileMs * 1000,
+      evalUs,
+      cacheHit: hit
+    };
+  };
+
+  Engine.prototype.evaluate = function (expr, wantTrace) {
+    let program = this.cacheGet(expr);
+    if (!program) {
+      this.stats.cacheMisses++;
+      program = this.compile(expr);
+      this.cachePut(expr, program);
+      if (program.ok) this.stats.compiles++;
+    } else {
+      this.stats.cacheHits++;
+    }
+    if (!program.ok) return { ok: false, error: program.error, value: 0 };
+    const ev = evalRpn(program.rpn, this.vars, !!wantTrace);
+    this.stats.evals++;
+    return ev;
+  };
+
+  Engine.prototype.evaluateNaive = function (expr) {
+    const tk = tokenize(expr);
+    if (!tk.ok) return { ok: false, error: tk.error, value: 0 };
+    const cv = shunting(tk.tokens, false);
+    if (!cv.ok) return { ok: false, error: cv.error, value: 0 };
+    return evalRpn(cv.rpn, this.vars, false);
+  };
+
+  Engine.prototype.state = function () {
+    const vars = {};
+    Object.keys(this.vars).sort().forEach(k => { vars[k] = this.vars[k]; });
+    return {
+      compiles: this.stats.compiles,
+      cacheHits: this.stats.cacheHits,
+      cacheMisses: this.stats.cacheMisses,
+      evals: this.stats.evals,
+      foldedConstants: this.stats.foldedConstants,
+      tokensLexed: this.stats.tokensLexed,
+      cacheSize: this.cache.size,
+      cacheCapacity: this.capacity,
+      cacheOrder: Array.from(this.cache.keys()).reverse(),
+      vars
+    };
+  };
+
+  // =========================================================================
+  // benchmark (mirrors `xpr bench`)
+  // =========================================================================
+  function runBenchmark() {
+    const engine = new Engine(256);
+    engine.setFolding(true);
+    engine.setVar('x', 6);
+    engine.setVar('y', 2);
+
+    const N = 20000;
+    const expr = '((3+4)*2 - 5) / 7 + 2^3*2 - sqrt(81) + x';
+    const foldedExpr = '2*3 + 4*5 - 6/2 + 7*8 - 9*1 + 2^5 + sqrt(16) - abs(-3) + max(2,7) + x';
+
+    const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    let sink = 0;
+    for (let i = 0; i < 500; i++) sink += engine.evaluateNaive(expr).value;
+
+    let t0 = now();
+    for (let i = 0; i < N; i++) sink += engine.evaluateNaive(expr).value;
+    const naiveUs = ((now() - t0) * 1000) / N;
+
+    t0 = now();
+    for (let i = 0; i < N; i++) sink += engine.evaluate(expr).value || 0;
+    const cachedUs = ((now() - t0) * 1000) / N;
+
+    t0 = now();
+    for (let i = 0; i < N; i++) sink += engine.evaluateNaive(foldedExpr).value;
+    const foldNaiveUs = ((now() - t0) * 1000) / N;
+
+    t0 = now();
+    for (let i = 0; i < N; i++) sink += engine.evaluate(foldedExpr).value || 0;
+    const foldFastUs = ((now() - t0) * 1000) / N;
+
+    const pool = [];
+    for (let i = 0; i < 400; i++) pool.push('(' + i + '+1)*2 - sqrt(16) + x');
+    t0 = now();
+    for (let pass = 0; pass < 3; pass++) for (const e of pool) sink += engine.evaluate(e).value || 0;
+    const poolUs = ((now() - t0) * 1000) / (3 * pool.length);
+
+    const a = engine.analyze(expr, false);
+    const f = engine.analyze(foldedExpr, false);
+
+    const scaling = [16, 256, 4096].map(terms => {
+      let longExpr = '1';
+      for (let i = 0; i < terms; i++) longExpr += '+1';
+      const reps = terms <= 256 ? 300 : 20;
+      const probe = new Engine(8);
+      const s0 = now();
+      let acc = 0;
+      for (let i = 0; i < reps; i++) acc += probe.evaluateNaive(longExpr).value;
+      const us = ((now() - s0) * 1000) / reps;
+      return { terms: terms + 1, tokens: 2 * terms + 1, micros: us, perTokenUs: us / (2 * terms + 1) };
+    });
+
+    const hits = engine.cache.hits || 0;
+    void sink;
+    return {
+      ok: true,
+      iterations: N,
+      measuredIn: 'browser (JS mirror)',
+      rows: [
+        {
+          label: 'Evaluate one expression ' + N + ' times',
+          fastLabel: 'cached compiled program', fastUs: cachedUs,
+          slowLabel: 're-tokenize + re-parse every time', slowUs: naiveUs,
+          speedup: naiveUs / (cachedUs || 1e-9),
+          note: 'LRU cache removes lexing and parsing from the hot path'
+        },
+        {
+          label: 'Constant-heavy expression',
+          fastLabel: 'compiled + constant folding', fastUs: foldFastUs,
+          slowLabel: 'naive pipeline', slowUs: foldNaiveUs,
+          speedup: foldNaiveUs / (foldFastUs || 1e-9),
+          note: f.stats.rawInstructions + ' instructions folded down to ' + f.stats.instructions
+        },
+        {
+          label: '400 distinct expressions, cache warm',
+          fastLabel: 'cached program', fastUs: poolUs,
+          slowLabel: 're-parse', slowUs: naiveUs,
+          speedup: naiveUs / (poolUs || 1e-9),
+          note: 'LRU capacity ' + engine.capacity + ', hit rate ' +
+            (100 * engine.stats.cacheHits / (engine.stats.cacheHits + engine.stats.cacheMisses + 1e-9)).toFixed(1) + '%'
+        }
+      ],
+      example: {
+        expr, raw: rpnText(a.convert ? shunting(engine.compile(expr).tokens, false).rpn : []),
+        optimized: rpnText(engine.compile(expr).foldedRpn),
+        result: formatNumber(engine.evaluate(expr).value)
+      },
+      foldedExample: {
+        expr: foldedExpr,
+        raw: rpnText(engine.compile(foldedExpr).rawRpn),
+        optimized: rpnText(engine.compile(foldedExpr).foldedRpn),
+        result: formatNumber(engine.evaluate(foldedExpr).value)
+      },
+      scaling,
+      folding: {
+        enabled: true,
+        rawInstructions: f.stats.rawInstructions,
+        optimizedInstructions: f.stats.instructions,
+        foldedSubtrees: f.stats.foldedSubtrees
+      }
+    };
+  }
+
+  // =========================================================================
+  // fetch-compatible offline API
+  // =========================================================================
+  const EXAMPLES = [
+    { label: 'Basic precedence', expr: '3 + 4 * 2' },
+    { label: 'Parentheses', expr: '(3 + 4) * 2' },
+    { label: 'Right-associative power', expr: '2 ^ 3 ^ 2' },
+    { label: 'Unary minus vs power', expr: '-2 ^ 2' },
+    { label: 'Implicit multiply', expr: '2(3 + 4) ^ 2' },
+    { label: 'Variables', expr: '2x^2 - 3x + 1' },
+    { label: 'Functions', expr: 'sqrt(81) + max(2, 7)' },
+    { label: 'Constant folding', expr: '2*3 + 4*5 - 6/2 + 7*8' },
+    { label: 'Bigger program', expr: '((3+4)*2 - 5) / 7 + 2^3*2 - sqrt(81) + x' },
+    { label: 'Percentage', expr: '1250 * 18 % 100' },
+    { label: 'Circle area', expr: '3.14159 * r ^ 2' },
+    { label: 'Error demo', expr: '3 + * 4' }
+  ];
+
+  function jsonResponse(payload) {
+    const body = JSON.stringify(payload);
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      headers: { get: () => 'application/json' },
+      text: () => Promise.resolve(body),
+      json: () => Promise.resolve(JSON.parse(body))
+    });
+  }
+
+  function readBody(opts) {
+    if (!opts || !opts.body) return {};
+    if (typeof opts.body === 'string') {
+      try { return JSON.parse(opts.body); } catch (e) { return {}; }
+    }
+    return opts.body;
+  }
+
+  function applyVars(engine, vars) {
+    if (!vars || typeof vars !== 'object') return;
+    Object.keys(vars).forEach(k => {
+      const v = Number(vars[k]);
+      if (isFinite(v)) engine.setVar(k, v);
+    });
+  }
+
+  function createEngine() {
+    const engine = new Engine(128);
+    engine.setVar('x', 6);
+    engine.setVar('y', 3);
+    engine.setVar('r', 5);
+
+    return function offlineFetch(url, opts) {
+      const path = String(url).split('?')[0];
+      const method = ((opts && opts.method) || 'GET').toUpperCase();
+      const body = readBody(opts);
+
+      if (path === '/api/health') {
+        return jsonResponse({ ok: true, service: 'voltiq-expr-dsa', engine: 'javascript mirror', version: '1.0' });
+      }
+      if (path === '/api/examples') {
+        return jsonResponse({ ok: true, examples: EXAMPLES });
+      }
+      if (path === '/api/bench') {
+        return jsonResponse(runBenchmark());
+      }
+      if (path === '/api/state') {
+        return jsonResponse({ ok: true, engine: engine.state() });
+      }
+      if (method === 'POST' && path === '/api/analyze') {
+        if (body.vars) engine.clearVars();
+        applyVars(engine, body.vars);
+        if (typeof body.fold === 'boolean') engine.setFolding(body.fold);
+        const analysis = engine.analyze(body.expr || '', body.trace !== false);
+        return jsonResponse(analysis);
+      }
+      if (method === 'POST' && path === '/api/eval') {
+        if (body.vars) engine.clearVars();
+        applyVars(engine, body.vars);
+        const result = engine.evaluate(body.expr || '');
+        return jsonResponse({
+          ok: result.ok,
+          value: result.ok ? result.value : null,
+          valueText: result.ok ? formatNumber(result.value) : '',
+          error: result.ok ? null : result.error,
+          engine: engine.state()
+        });
+      }
+      if (method === 'POST' && path === '/api/vars') {
+        applyVars(engine, body.vars);
+        return jsonResponse({ ok: true, engine: engine.state() });
+      }
+      if (method === 'POST' && path === '/api/reset') {
+        engine.clearVars();
+        engine.resetCache();
+        return jsonResponse({ ok: true, engine: engine.state() });
+      }
+      return jsonResponse({ ok: false, error: 'not found' });
+    };
+  }
+
+  return {
+    createEngine, tokenize, shunting, evalRpn, Engine,
+    formatNumber, runBenchmark, rpnText, EXAMPLES
+  };
+});
+
+</script>
+<script>
+
+(function () {
+  var realFetch = window.fetch ? window.fetch.bind(window) : null;
+  var offline = window.VoltIQEngine.createEngine();
+  window.VoltIQOffline = true;
+  window.fetch = function (url, opts) {
+    if (typeof url === 'string' && url.indexOf('/api/') === 0) {
+      return offline(url, opts || {});
+    }
+    if (realFetch) return realFetch(url, opts);
+    return Promise.reject(new Error('offline'));
+  };
+})();
+
+</script>
+<script>
+/* ==========================================================================
+   VoltIQ Expr — dashboard app
+   Talks to the C++ engine through /api/*, or to the bundled JS mirror when the
+   page is opened as a single offline file (see standalone/engine.js).
+   ========================================================================== */
+(function () {
+  'use strict';
+
+  const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+  const state = {
+    expr: '2x^2 - 3x + 1',
+    vars: { x: 6, y: 3, r: 5 },
+    folding: false,
+    analysis: null,
+    timeline: [],
+    index: -1,
+    playing: false,
+    timer: null,
+    speed: 800,
+    autoplayed: false,
+    examples: []
+  };
+
+  const els = {
+    input: $('#exprInput'),
+    solve: $('#solveBtn'),
+    examples: $('#exampleChips'),
+    varChips: $('#varChips'),
+    addVarForm: $('#addVarForm'),
+    newVar: $('#newVar'),
+    errorBanner: $('#errorBanner'),
+    errorMessage: $('#errorMessage'),
+    errorSource: $('#errorSource'),
+    resultValue: $('#resultValue'),
+    resultSub: $('#resultSub'),
+    activeProgram: $('#activeProgram'),
+    statChips: $('#statChips'),
+    tokenStrip: $('#tokenStrip'),
+    opStack: $('#opStack'),
+    outQueue: $('#outQueue'),
+    convertNote: $('#convertNote'),
+    convertHint: $('#convertHint'),
+    rpnStrip: $('#rpnStrip'),
+    valStack: $('#valStack'),
+    liveValue: $('#liveValue'),
+    liveOp: $('#liveOp'),
+    evalNote: $('#evalNote'),
+    evalHint: $('#evalHint'),
+    evalPane: $('#evalPane'),
+    convertPane: $('#convertPane'),
+    tabConvert: $('#tabConvert'),
+    tabEval: $('#tabEval'),
+    play: $('#playBtn'),
+    prev: $('#prevBtn'),
+    next: $('#nextBtn'),
+    reset: $('#resetBtn'),
+    end: $('#endBtn'),
+    speed: $('#speedSelect'),
+    timelineFill: $('#timelineFill'),
+    stepCounter: $('#stepCounter'),
+    foldToggle: $('#foldToggle'),
+    rawProgram: $('#rawProgram'),
+    foldedProgram: $('#foldedProgram'),
+    rawCount: $('#rawCount'),
+    foldedCount: $('#foldedCount'),
+    optimiserNote: $('#optimiserNote'),
+    treeCanvas: $('#treeCanvas'),
+    traversals: $('#traversals'),
+    benchBody: $('#benchBody'),
+    benchBtn: $('#benchBtn'),
+    engineGrid: $('#engineGrid'),
+    cacheList: $('#cacheList'),
+    engineBadge: $('#engineBadge'),
+    engineBadgeText: $('#engineBadgeText'),
+    copyLink: $('#copyLinkBtn'),
+    resetEngine: $('#resetEngineBtn'),
+    toast: $('#toast')
+  };
+
+  // ------------------------------------------------------------------ utils
+  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function toast(message) {
+    els.toast.textContent = message;
+    els.toast.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => els.toast.classList.remove('show'), 1900);
+  }
+
+  async function api(path, body) {
+    const options = body
+      ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+      : undefined;
+    const res = await fetch(path, options);
+    return res.json();
+  }
+
+  function fmtMicros(us) {
+    if (us === null || us === undefined || isNaN(us)) return '—';
+    if (us >= 1000) return (us / 1000).toFixed(2) + ' ms';
+    if (us >= 10) return us.toFixed(1) + ' µs';
+    return us.toFixed(2) + ' µs';
+  }
+
+  // ------------------------------------------------------------ input state
+  function currentExpr() { return els.input.value.trim(); }
+
+  function syncHash() {
+    const params = [];
+    params.push('e=' + encodeURIComponent(state.expr));
+    params.push('v=' + encodeURIComponent(JSON.stringify(state.vars)));
+    if (state.folding) params.push('f=1');
+    const url = location.pathname + location.search + '#' + params.join('&');
+    try { history.replaceState(null, '', url); } catch (e) { /* file:// */ }
+  }
+
+  function readHash() {
+    const hash = (location.hash || '').replace(/^#/, '');
+    if (!hash) return false;
+    const out = {};
+    hash.split('&').forEach((pair) => {
+      const [k, ...rest] = pair.split('=');
+      out[k] = decodeURIComponent(rest.join('='));
+    });
+    if (out.e) {
+      state.expr = out.e;
+      els.input.value = out.e;
+    }
+    if (out.v) {
+      try {
+        const parsed = JSON.parse(out.v);
+        if (parsed && typeof parsed === 'object') state.vars = parsed;
+      } catch (e) { /* ignore */ }
+    }
+    if (out.f === '1') {
+      state.folding = true;
+      els.foldToggle.checked = true;
+    }
+    return true;
+  }
+
+  // ------------------------------------------------------------ variables UI
+  function renderVars() {
+    const names = Object.keys(state.vars).sort();
+    els.varChips.innerHTML = names.map((name) => `
+      <span class="var-chip" data-var="${escapeHtml(name)}">
+        ${escapeHtml(name)} =
+        <input type="text" inputmode="decimal" aria-label="${escapeHtml(name)} value"
+               data-var-input="${escapeHtml(name)}" value="${escapeHtml(state.vars[name])}" />
+        <button class="del" data-var-del="${escapeHtml(name)}" title="Remove variable" aria-label="Remove ${escapeHtml(name)}">×</button>
+      </span>`).join('');
+  }
+
+  els.varChips.addEventListener('change', (event) => {
+    const name = event.target.getAttribute('data-var-input');
+    if (!name) return;
+    const value = Number(event.target.value);
+    if (!isFinite(value)) {
+      toast('variables must be numbers');
+      renderVars();
+      return;
+    }
+    state.vars[name] = value;
+    analyze();
+  });
+
+  els.varChips.addEventListener('click', (event) => {
+    const name = event.target.getAttribute('data-var-del');
+    if (!name) return;
+    delete state.vars[name];
+    renderVars();
+    analyze();
+  });
+
+  els.addVarForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const raw = els.newVar.value.trim();
+    if (!raw) return;
+    const match = /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(-?[0-9.]+(?:e[+-]?\d+)?)$/i.exec(raw);
+    if (!match) {
+      toast('use name=value, e.g. z=4');
+      return;
+    }
+    state.vars[match[1]] = Number(match[2]);
+    els.newVar.value = '';
+    renderVars();
+    analyze();
+  });
+
+  // ------------------------------------------------------------ examples
+  function renderExamples() {
+    els.examples.innerHTML = state.examples.map((ex) =>
+      `<button class="chip${ex.expr === state.expr ? ' active' : ''}" data-expr="${escapeHtml(ex.expr)}" title="${escapeHtml(ex.label)}">${escapeHtml(ex.expr)}</button>`
+    ).join('');
+  }
+
+  els.examples.addEventListener('click', (event) => {
+    const expr = event.target.closest('[data-expr]');
+    if (!expr) return;
+    els.input.value = expr.getAttribute('data-expr');
+    analyze();
+  });
+
+  // ------------------------------------------------------------ analysis
+  let analyzeTimer = null;
+  function scheduleAnalyze() {
+    clearTimeout(analyzeTimer);
+    analyzeTimer = setTimeout(analyze, 260);
+  }
+
+  async function analyze() {
+    state.expr = currentExpr();
+    if (!state.expr) {
+      clearResult();
+      return;
+    }
+    syncHash();
+    renderExamples();
+
+    let analysis;
+    try {
+      analysis = await api('/api/analyze', {
+        expr: state.expr,
+        vars: state.vars,
+        fold: state.folding,
+        trace: true
+      });
+    } catch (err) {
+      setBadge('error', 'engine unreachable — run ./run.sh');
+      return;
+    }
+
+    state.analysis = analysis;
+    state.timeline = buildTimeline(analysis);
+    state.index = -1;
+    stopPlaying();
+
+    renderError(analysis);
+    renderResult(analysis);
+    renderProgram(analysis);
+    renderTree(analysis);
+    renderEngine(analysis.engine);
+    renderStrips(analysis);
+    applyStep(-1);
+
+    if (!state.autoplayed && analysis.ok && state.timeline.length > 1) {
+      state.autoplayed = true;
+      setTimeout(() => play(), 450);
+    }
+  }
+
+  function buildTimeline(analysis) {
+    const timeline = [];
+    if (analysis.convert && analysis.convert.steps) {
+      analysis.convert.steps.forEach((s) => timeline.push(Object.assign({ phase: 'convert' }, s)));
+    }
+    if (analysis.eval && analysis.eval.steps) {
+      analysis.eval.steps.forEach((s) => timeline.push(Object.assign({ phase: 'eval' }, s)));
+    }
+    return timeline;
+  }
+
+  function clearResult() {
+    state.analysis = null;
+    state.timeline = [];
+    els.resultValue.textContent = '—';
+    els.resultValue.classList.remove('error');
+    els.resultSub.textContent = 'waiting for input';
+    els.errorBanner.hidden = true;
+    applyStep(-1);
+  }
+
+  // ------------------------------------------------------------ renderers
+  function setBadge(kind, text) {
+    els.engineBadge.className = 'badge' + (kind ? ' ' + kind : '');
+    els.engineBadgeText.textContent = text;
+  }
+
+  function renderError(analysis) {
+    if (!analysis.error) {
+      els.errorBanner.hidden = true;
+      return;
+    }
+    const pos = Math.max(0, Math.min(analysis.error.pos || 0, analysis.expr.length));
+    const len = Math.max(1, analysis.error.len || 1);
+    const caret = ' '.repeat(pos) + '^' + '~'.repeat(len - 1);
+    els.errorBanner.hidden = false;
+    els.errorMessage.textContent = analysis.error.message;
+    els.errorSource.innerHTML =
+      escapeHtml(analysis.expr) + '\n' +
+      '<span class="caret">' + escapeHtml(caret) + '</span>';
+  }
+
+  function renderResult(analysis) {
+    const stats = analysis.stats || {};
+    if (analysis.error && !analysis.eval.ok) {
+      els.resultValue.textContent = 'error';
+      els.resultValue.classList.add('error');
+      els.resultSub.textContent = analysis.error.message;
+    } else {
+      els.resultValue.classList.remove('error');
+      els.resultValue.textContent = analysis.eval.valueText;
+      els.resultSub.textContent = analysis.normalized || '';
+    }
+
+    els.activeProgram.textContent = (analysis.program && analysis.program.active) || '—';
+
+    const cache = stats.cacheHit ? 'hit' : 'miss';
+    const chips = [
+      ['tokens', stats.tokens, ''],
+      ['instructions', stats.instructions, 'mint'],
+      ['folded away', stats.foldedConstants, stats.foldedConstants ? 'amber' : ''],
+      ['peak stack', Math.max(stats.peakOpStack || 0, stats.peakEvalStack || 0), 'blue'],
+      ['compile', fmtMicros(stats.compileUs), ''],
+      ['evaluate', fmtMicros(stats.evalUs), ''],
+      ['cache', cache, stats.cacheHit ? 'mint' : '']
+    ];
+    els.statChips.innerHTML = chips.map(([k, v, cls]) =>
+      `<div class="stat"><span class="k">${k}</span><span class="v ${cls}">${escapeHtml(v)}</span></div>`
+    ).join('');
+  }
+
+  function renderProgram(analysis) {
+    const program = analysis.program || { raw: '', folded: '', active: '', foldingActive: false };
+    const stats = analysis.stats || {};
+    els.rawProgram.textContent = program.raw || '—';
+    els.foldedProgram.textContent = program.folded || '—';
+    els.rawCount.textContent = (stats.rawInstructions || 0) + ' instructions';
+    els.foldedCount.textContent = (program.folded ? program.folded.split(' ').length : 0) + ' instructions';
+    els.foldToggle.checked = state.folding;
+
+    const blocks = $$('.program-block');
+    if (blocks.length === 2) {
+      blocks[0].classList.toggle('active', !state.folding);
+      blocks[1].classList.toggle('active', state.folding);
+    }
+
+    const saved = stats.rawInstructions - (program.folded ? program.folded.split(' ').length : 0);
+    let note;
+    if (!saved) {
+      note = 'This expression has no all-constant subtree, so folding leaves the program unchanged.';
+    } else if (state.folding) {
+      note = `Folding removed <b>${saved}</b> instruction${saved === 1 ? '' : 's'} — the shortened program is what runs.`;
+    } else {
+      note = `Folding is off, so the raw program runs. Turn it on to remove <b>${saved}</b> instruction${saved === 1 ? '' : 's'}.`;
+    }
+    if (stats.cacheHit) note += ' Compiled earlier — this run came from the LRU cache.';
+    els.optimiserNote.innerHTML = note;
+  }
+
+  function renderStrips(analysis) {
+    const tokens = analysis.tokens || [];
+    els.tokenStrip.innerHTML = tokens.length
+      ? tokens.map((t, i) => {
+        const classes = ['token'];
+        if (t.implicit) classes.push('implicit');
+        if (t.folded) classes.push('folded-token');
+        return `<span class="${classes.join(' ')}" data-token="${i}" title="${escapeHtml(t.type)} at column ${t.pos + 1}">${escapeHtml(t.text)}</span>`;
+      }).join('')
+      : '<span class="empty">no tokens</span>';
+
+    const evalSteps = (analysis.eval && analysis.eval.steps) || [];
+    els.rpnStrip.innerHTML = evalSteps.length
+      ? evalSteps.map((s, i) =>
+        `<span class="token" data-rpn="${i}" title="instruction ${i + 1}">${escapeHtml(s.token)}</span>`).join('')
+      : '<span class="empty">the postfix program appears here</span>';
+  }
+
+  // ------------------------------------------------------------ step engine
+  function stackMarkup(items, kind) {
+    if (!items || !items.length) return '<span class="empty">empty</span>';
+    return items.map((item, i) => {
+      const cls = ['brick'];
+      if (kind === 'values') cls.push('value');
+      else if (item.endsWith('()')) cls.push('fn');
+      else if (item === '(') cls.push('paren');
+      else if (/^[+\-*/%^]/.test(item)) cls.push('op');
+      if (i === items.length - 1) cls.push('top');
+      return `<span class="${cls.join(' ')}">${escapeHtml(item)}</span>`;
+    }).join('');
+  }
+
+  function queueMarkup(items) {
+    if (!items || !items.length) return '<span class="empty">empty</span>';
+    return items.map((item) =>
+      `<span class="q-item${item.endsWith('()') ? ' fn' : ''}">${escapeHtml(item)}</span>`).join('');
+  }
+
+  function lastConvertSnapshot() {
+    const steps = (state.analysis && state.analysis.convert && state.analysis.convert.steps) || [];
+    return steps.length ? steps[steps.length - 1] : null;
+  }
+
+  function paintConvert(step, done) {
+    const tokens = $$('#tokenStrip .token');
+    tokens.forEach((el, i) => {
+      el.classList.toggle('done', done || (step && step.tokenIndex >= 0 && i < step.tokenIndex));
+      el.classList.toggle('watch', !!step && step.tokenIndex === i);
+    });
+    els.opStack.innerHTML = stackMarkup(step ? step.stack : [], 'ops');
+    els.outQueue.innerHTML = queueMarkup(step ? step.output : []);
+    if (step) {
+      els.convertNote.innerHTML = `<span class="action">${escapeHtml(step.action)}</span>${escapeHtml(step.note)}`;
+      els.convertHint.textContent = step.token ? 'token “' + step.token + '”' : 'flushing the stack';
+    } else {
+      els.convertNote.innerHTML = 'Press <b>Play</b> or step through to watch the stack push and pop.';
+      els.convertHint.textContent = 'reading tokens left to right';
+    }
+  }
+
+  function paintEval(step, finalConvert) {
+    const rpn = $$('#rpnStrip .token');
+    rpn.forEach((el, i) => {
+      el.classList.toggle('done', !!step && i < step.tokenIndex);
+      el.classList.toggle('watch', !!step && i === step.tokenIndex);
+    });
+    els.valStack.innerHTML = stackMarkup(step ? step.stack : [], 'values');
+    if (step) {
+      els.liveValue.textContent = step.value || '—';
+      els.liveOp.textContent = step.token + ' · ' + step.action;
+      els.evalNote.innerHTML = `<span class="action">${escapeHtml(step.action)}</span>${escapeHtml(step.note)}`;
+      els.evalHint.textContent = 'instruction ' + (step.tokenIndex + 1) + ' of ' + rpn.length;
+    } else if (finalConvert) {
+      els.liveValue.textContent = '—';
+      els.liveOp.textContent = 'no operation yet';
+      els.evalNote.innerHTML = 'Postfix program ready — press <b>Play</b> to run it on the stack.';
+      els.evalHint.textContent = 'waiting to run';
+    } else {
+      els.liveValue.textContent = '—';
+      els.liveOp.textContent = 'no operation yet';
+      els.evalNote.textContent = 'The postfix program is executed one instruction at a time.';
+      els.evalHint.textContent = 'waiting for the postfix program';
+    }
+  }
+
+  function applyStep(index) {
+    state.index = index;
+    const total = state.timeline.length;
+    const step = index >= 0 && index < total ? state.timeline[index] : null;
+    const analysis = state.analysis;
+    const hasAnalysis = !!analysis && !!analysis.program;
+    const finalConvert = hasAnalysis ? lastConvertSnapshot() : null;
+
+    if (!step) {
+      paintConvert(null, false);
+      paintEval(null, null);
+      els.tabConvert.classList.add('active');
+      els.tabConvert.classList.remove('done');
+      els.tabEval.classList.remove('active', 'done');
+      els.convertPane.classList.remove('dim', 'focus');
+      els.evalPane.classList.add('dim');
+    } else if (step.phase === 'convert') {
+      paintConvert(step, false);
+      paintEval(null, hasAnalysis && analysis.convert && analysis.convert.ok ? null : null);
+      els.tabConvert.classList.add('active');
+      els.tabConvert.classList.remove('done');
+      els.tabEval.classList.remove('active', 'done');
+      els.convertPane.classList.remove('dim');
+      els.convertPane.classList.add('focus');
+      els.evalPane.classList.add('dim');
+      els.evalPane.classList.remove('focus');
+    } else {
+      paintConvert(finalConvert, true);
+      paintEval(step, finalConvert);
+      els.tabConvert.classList.remove('active');
+      els.tabConvert.classList.add('done');
+      els.tabEval.classList.add('active');
+      els.tabEval.classList.remove('done');
+      els.convertPane.classList.add('dim');
+      els.convertPane.classList.remove('focus');
+      els.evalPane.classList.remove('dim');
+      els.evalPane.classList.add('focus');
+    }
+
+    els.stepCounter.textContent = 'step ' + (index + 1) + ' / ' + total;
+    els.timelineFill.style.width = total ? ((index + 1) / total * 100).toFixed(1) + '%' : '0%';
+
+    els.prev.disabled = index < 0;
+    els.reset.disabled = index < 0;
+    els.next.disabled = total === 0 || index >= total - 1;
+    els.end.disabled = total === 0 || index >= total - 1;
+  }
+
+  function next() {
+    if (state.index >= state.timeline.length - 1) {
+      stopPlaying();
+      return false;
+    }
+    applyStep(state.index + 1);
+    return true;
+  }
+
+  function prev() {
+    applyStep(Math.max(-1, state.index - 1));
+  }
+
+  function play() {
+    if (!state.timeline.length) return;
+    if (state.index >= state.timeline.length - 1) applyStep(-1);
+    state.playing = true;
+    els.play.innerHTML = '&#10074;&#10074; Pause';
+    els.play.setAttribute('aria-label', 'Pause');
+    tick();
+  }
+
+  function tick() {
+    if (!state.playing) return;
+    state.timer = setTimeout(() => {
+      if (!state.playing) return;
+      if (!next()) {
+        stopPlaying();
+        return;
+      }
+      tick();
+    }, Number(els.speed.value));
+  }
+
+  function stopPlaying() {
+    state.playing = false;
+    clearTimeout(state.timer);
+    els.play.innerHTML = '&#9654; Play';
+    els.play.setAttribute('aria-label', 'Play');
+  }
+
+  // ------------------------------------------------------------ tree
+  function renderTree(analysis) {
+    const tree = analysis.ast;
+    if (!tree || tree.root < 0 || !tree.nodeCount) {
+      els.treeCanvas.innerHTML = '<p class="empty-state">The tree appears once the expression parses.</p>';
+      els.traversals.innerHTML = '';
+      return;
+    }
+    if (tree.nodeCount > 70) {
+      els.treeCanvas.innerHTML = '<p class="empty-state">Expression too large to draw (' + tree.nodeCount + ' nodes).</p>';
+      els.traversals.innerHTML = '';
+      return;
+    }
+
+    const nodes = tree.nodes;
+    const order = [];   // in-order positions
+    let column = 0;
+    const xIndex = new Array(nodes.length).fill(0);
+    const depthOf = new Array(nodes.length).fill(0);
+
+    (function walk(id, depth) {
+      if (id < 0 || id === undefined) return;
+      depthOf[id] = depth;
+      walk(nodes[id].left, depth + 1);
+      xIndex[id] = column++;
+      walk(nodes[id].right, depth + 1);
+    })(tree.root, 0);
+
+    const labelOf = (n) => n.label;
+    let maxWidth = 0;
+    nodes.forEach((n) => { maxWidth = Math.max(maxWidth, 20 + labelOf(n).length * 8.2); });
+    const gapX = maxWidth + 14;
+    const rowH = 64;
+    const padding = 16;
+    const width = Math.max(column * gapX + padding * 2, 260);
+    const maxDepth = Math.max.apply(null, depthOf.filter((_, i) => nodes[i].type || true));
+    const height = (maxDepth + 1) * rowH + padding * 2;
+
+    const px = (id) => padding + xIndex[id] * gapX + maxWidth / 2;
+    const py = (id) => padding + depthOf[id] * rowH + 13;
+
+    let edges = '';
+    let boxes = '';
+    nodes.forEach((n, id) => {
+      const x = px(id);
+      const y = py(id);
+      const w = 20 + labelOf(n).length * 8.2;
+      [n.left, n.right].forEach((child) => {
+        if (child >= 0) {
+          edges += `<line class="tree-edge" x1="${x}" y1="${y + 13}" x2="${px(child)}" y2="${py(child) - 13}" />`;
+        }
+      });
+      const cls = ['tree-node', n.type === 'operator' ? 'op' : n.type === 'function' ? 'fn'
+        : n.type === 'variable' ? 'var' : 'num'];
+      if (n.folded) cls.push('folded');
+      boxes += `<g class="${cls.join(' ')}"><rect x="${x - w / 2}" y="${y - 13}" width="${w}" height="26" rx="8" />`
+        + `<text x="${x}" y="${y + 1}">${escapeHtml(labelOf(n))}</text>`
+        + (n.folded ? `<text class="tree-tag" x="${x}" y="${y + 24}">folded</text>` : '')
+        + '</g>';
+    });
+
+    els.treeCanvas.innerHTML =
+      `<svg viewBox="0 0 ${width} ${height}" width="${Math.min(width, 1100)}" height="${height}" role="img" aria-label="Expression tree">`
+      + edges + boxes + '</svg>';
+
+    els.traversals.innerHTML =
+      `<div>prefix <span>${escapeHtml(tree.prefix)}</span></div>`
+      + `<div>infix <span>${escapeHtml(tree.infix)}</span></div>`
+      + `<div>height <span>${tree.height}</span> · nodes <span>${tree.nodeCount}</span></div>`;
+  }
+
+  // ------------------------------------------------------------ engine panel
+  function renderEngine(engine) {
+    if (!engine) return;
+    const lookups = engine.cacheHits + engine.cacheMisses;
+    const hitRate = lookups ? (engine.cacheHits / lookups * 100).toFixed(1) + '%' : '—';
+    const metrics = [
+      ['compiles', engine.compiles],
+      ['cache hits', engine.cacheHits],
+      ['cache misses', engine.cacheMisses],
+      ['hit rate', hitRate],
+      ['evaluations', engine.evals],
+      ['tokens lexed', engine.tokensLexed],
+      ['cache', engine.cacheSize + '/' + engine.cacheCapacity],
+      ['folded', engine.foldedConstants]
+    ];
+    els.engineGrid.innerHTML = metrics.map(([k, v]) =>
+      `<div class="engine-metric"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`
+    ).join('');
+
+    const cache = engine.cacheOrder || [];
+    els.cacheList.innerHTML = cache.length
+      ? cache.map((k) => `<span class="cache-item" title="${escapeHtml(k)}">${escapeHtml(k)}</span>`).join('')
+      : '<span class="cache-empty">cache is empty</span>';
+  }
+
+  // ------------------------------------------------------------ benchmarks
+  async function runBench() {
+    els.benchBtn.disabled = true;
+    els.benchBtn.textContent = 'Running…';
+    els.benchBody.innerHTML = '<p class="empty-state">Timing both pipelines…</p>';
+    try {
+      const bench = await api('/api/bench');
+      renderBench(bench);
+    } catch (err) {
+      els.benchBody.innerHTML = '<p class="empty-state">Benchmark failed — is the engine running?</p>';
+    } finally {
+      els.benchBtn.disabled = false;
+      els.benchBtn.textContent = 'Run';
+    }
+  }
+
+  function renderBench(bench) {
+    if (!bench || !bench.rows) {
+      els.benchBody.innerHTML = '<p class="empty-state">No benchmark data.</p>';
+      return;
+    }
+    const source = bench.measuredIn || (window.VoltIQOffline ? 'browser (JS mirror)' : 'measured in the C++ engine');
+    const maxSlow = Math.max.apply(null, bench.rows.map((r) => r.slowUs)) || 1;
+
+    const rows = bench.rows.map((row) => `
+      <div class="bench-row">
+        <div class="bench-top">
+          <span class="bench-label">${escapeHtml(row.label)}</span>
+          <span class="bench-speed">${row.speedup.toFixed ? row.speedup.toFixed(1) : row.speedup}× faster</span>
+        </div>
+        <div class="bench-bars">
+          <div class="bench-bar fast">
+            <span>${escapeHtml(row.fastLabel)}</span>
+            <span class="track"><span class="fill" style="width:${Math.max(2, (row.fastUs / maxSlow) * 100)}%"></span></span>
+            <span class="us">${row.fastUs < 1 ? row.fastUs.toFixed(3) : row.fastUs.toFixed(2)} µs</span>
+          </div>
+          <div class="bench-bar slow">
+            <span>${escapeHtml(row.slowLabel)}</span>
+            <span class="track"><span class="fill" style="width:${Math.max(2, (row.slowUs / maxSlow) * 100)}%"></span></span>
+            <span class="us">${row.slowUs < 1 ? row.slowUs.toFixed(3) : row.slowUs.toFixed(2)} µs</span>
+          </div>
+        </div>
+        <div class="bench-note">${escapeHtml(row.note)}</div>
+      </div>`).join('');
+
+    const scaling = (bench.scaling || []).map((s) => `
+      <tr><td>${s.tokens}</td><td>${s.micros.toFixed(2)} µs</td><td>${s.perTokenUs.toFixed(3)} µs</td></tr>`).join('');
+
+    els.benchBody.innerHTML = rows + `
+      <div class="scaling">
+        <h5>Tokenizer + parser scaling <span class="bench-source">· ${escapeHtml(source)}</span></h5>
+        <table>
+          <thead><tr><th>tokens</th><th>total</th><th>per token</th></tr></thead>
+          <tbody>${scaling}</tbody>
+        </table>
+        <div class="bench-note">Cost per token stays flat → the pipeline is linear, O(n).</div>
+      </div>`;
+  }
+
+  // ------------------------------------------------------------ events
+  els.solve.addEventListener('click', () => { state.autoplayed = true; analyze(); });
+
+  els.input.addEventListener('input', scheduleAnalyze);
+  els.input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      state.autoplayed = true;
+      analyze();
+      els.input.blur();
+    }
+  });
+
+  els.play.addEventListener('click', () => {
+    if (state.playing) stopPlaying();
+    else play();
+  });
+  els.next.addEventListener('click', () => { stopPlaying(); next(); });
+  els.prev.addEventListener('click', () => { stopPlaying(); prev(); });
+  els.reset.addEventListener('click', () => { stopPlaying(); applyStep(-1); });
+  els.end.addEventListener('click', () => { stopPlaying(); applyStep(state.timeline.length - 1); });
+  els.speed.addEventListener('change', () => { state.speed = Number(els.speed.value); });
+
+  els.foldToggle.addEventListener('change', () => {
+    state.folding = els.foldToggle.checked;
+    state.autoplayed = true;
+    analyze();
+  });
+
+  els.tokenStrip.addEventListener('click', (event) => {
+    const el = event.target.closest('[data-token]');
+    if (!el) return;
+    const tokenIndex = Number(el.getAttribute('data-token'));
+    const found = state.timeline.findIndex((s) => s.phase === 'convert' && s.tokenIndex === tokenIndex);
+    if (found >= 0) { stopPlaying(); applyStep(found); }
+  });
+
+  els.rpnStrip.addEventListener('click', (event) => {
+    const el = event.target.closest('[data-rpn]');
+    if (!el) return;
+    const instr = Number(el.getAttribute('data-rpn'));
+    const found = state.timeline.findIndex((s) => s.phase === 'eval' && s.tokenIndex === instr);
+    if (found >= 0) { stopPlaying(); applyStep(found); }
+  });
+
+  els.tabConvert.addEventListener('click', () => {
+    stopPlaying();
+    applyStep(-1);
+  });
+  els.tabEval.addEventListener('click', () => {
+    stopPlaying();
+    const first = state.timeline.findIndex((s) => s.phase === 'eval');
+    if (first >= 0) applyStep(first);
+  });
+
+  els.benchBtn.addEventListener('click', runBench);
+  $('#footerBench').addEventListener('click', () => {
+    runBench();
+    document.querySelector('.bench-card').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  $('#footerHelp').addEventListener('click', () =>
+    toast('Space play/pause · ← → step · Home start · End finish · Enter solve'));
+
+  els.resetEngine.addEventListener('click', async () => {
+    try {
+      await api('/api/reset', {});
+      state.vars = {};
+      renderVars();
+      analyze();
+      toast('variables and cache cleared');
+    } catch (e) {
+      toast('could not reset the engine');
+    }
+  });
+
+  els.copyLink.addEventListener('click', async () => {
+    syncHash();
+    const url = location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast('link copied — send it to a friend');
+    } catch (e) {
+      toast(url);
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    const tag = (event.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+    if (event.key === ' ' || event.key === 'Spacebar') {
+      event.preventDefault();
+      if (state.playing) stopPlaying();
+      else play();
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      stopPlaying();
+      next();
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      stopPlaying();
+      prev();
+    } else if (event.key === 'Home') {
+      stopPlaying();
+      applyStep(-1);
+    } else if (event.key === 'End') {
+      stopPlaying();
+      applyStep(state.timeline.length - 1);
+    }
+  });
+
+  // ------------------------------------------------------------ boot
+  async function boot() {
+    const hadHash = readHash();
+    if (!hadHash) els.input.value = state.expr;
+    renderVars();
+    if (state.folding) els.foldToggle.checked = true;
+
+    try {
+      const health = await api('/api/health');
+      const offline = !!window.VoltIQOffline;
+      setBadge(offline ? 'offline' : '', offline
+        ? 'offline build · JS mirror'
+        : 'C++17 engine · ' + (health.engine || 'live'));
+    } catch (e) {
+      setBadge('error', 'engine offline — run ./run.sh');
+    }
+
+    try {
+      const examples = await api('/api/examples');
+      state.examples = examples.examples || [];
+      renderExamples();
+    } catch (e) { /* chips are optional */ }
+
+    analyze();
+  }
+
+  boot();
+})();
+
+</script>
+</body>
+</html>

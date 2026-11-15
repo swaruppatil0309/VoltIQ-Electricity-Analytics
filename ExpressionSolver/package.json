@@ -1,0 +1,19 @@
+{
+  "name": "voltiq-expr-tooling",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Build and test tooling for VoltIQ Expr. The engine itself is C++17; the dashboard is vanilla JS with no runtime dependencies.",
+  "scripts": {
+    "start": "node web/server.js",
+    "build": "node standalone/build-standalone.js",
+    "test:parity": "node tests/parity.js",
+    "test:ui": "node tests/ui-test.js",
+    "test": "node tests/parity.js && node tests/ui-test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^31.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

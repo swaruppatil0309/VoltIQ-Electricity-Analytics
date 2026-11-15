@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>VoltIQ Expr · Expression Solver &amp; Visualizer</title>
+<meta name="description" content="Convert infix expressions to postfix with a shunting-yard trace, evaluate them on a stack, and watch every step. C++17 DSA project." />
+<link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<div class="bg-grid" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 8 4 16l7 8" />
+        <path d="M21 8l7 8-7 8" />
+        <path d="M18.5 6.5 13.5 25.5" />
+      </svg>
+    </span>
+    <div class="brand-text">
+      <h1>VoltIQ <span>Expr</span></h1>
+      <p>Expression Solver &amp; Visualizer · stacks in action</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <span class="badge" id="engineBadge"><span class="dot"></span><span id="engineBadgeText">connecting…</span></span>
+    <button class="btn ghost" id="copyLinkBtn" title="Copy a link to this expression">Copy link</button>
+  </div>
+</header>
+
+<main>
+  <!-- ===================== input ===================== -->
+  <section class="card input-card">
+    <label class="field-label" for="exprInput">Infix expression</label>
+    <div class="input-row">
+      <span class="prompt" aria-hidden="true">&#8250;</span>
+      <input id="exprInput" class="expr-input" autocomplete="off" autocapitalize="off" spellcheck="false"
+             placeholder="type an expression, e.g. 2x^2 - 3x + 1" aria-label="Infix expression" />
+      <button class="btn primary" id="solveBtn">Solve</button>
+    </div>
+
+    <div class="chips examples" id="exampleChips"></div>
+
+    <div class="vars-row">
+      <span class="field-label small">variables</span>
+      <div class="chips" id="varChips"></div>
+      <form class="add-var" id="addVarForm" autocomplete="off">
+        <input id="newVar" placeholder="z=4" size="5" aria-label="Add a variable" />
+        <button class="btn tiny" type="submit">add</button>
+      </form>
+      <span class="hint inline">Operators <b>+ − * / % ^</b> · functions <b>sqrt sin cos abs log min max pow</b> · implicit × as in <b>2x</b> or <b>3(4+5)</b></span>
+    </div>
+
+    <div class="error-banner" id="errorBanner" hidden role="alert">
+      <div class="error-title"><span class="error-icon">!</span><span id="errorMessage"></span></div>
+      <pre class="error-source" id="errorSource"></pre>
+    </div>
+  </section>
+
+  <!-- ===================== result ===================== -->
+  <section class="card result-card" id="resultCard">
+    <div class="result-main">
+      <span class="field-label">Result</span>
+      <div class="result-value" id="resultValue">—</div>
+      <div class="result-sub" id="resultSub">waiting for input</div>
+    </div>
+    <div class="result-side">
+      <div class="program-line">
+        <span class="field-label small">compiled program</span>
+        <code id="activeProgram">—</code>
+      </div>
+      <div class="stat-chips" id="statChips"></div>
+    </div>
+  </section>
+
+  <!-- ===================== visualizer ===================== -->
+  <section class="card viz-card">
+    <div class="card-head">
+      <div class="phase-tabs" role="tablist">
+        <button class="phase-tab active" id="tabConvert" role="tab" aria-selected="true">
+          <span class="num">1</span> Infix → Postfix
+        </button>
+        <button class="phase-tab" id="tabEval" role="tab" aria-selected="false">
+          <span class="num">2</span> Postfix evaluation
+        </button>
+      </div>
+
+      <div class="playback">
+        <button class="icon-btn" id="resetBtn" title="Back to the start (Home)" aria-label="Reset">&#8634;</button>
+        <button class="icon-btn" id="prevBtn" title="Previous step (←)" aria-label="Previous step">&#9664;&#9664;</button>
+        <button class="btn primary play" id="playBtn" title="Play / pause (space)" aria-label="Play">&#9654; Play</button>
+        <button class="icon-btn" id="nextBtn" title="Next step (→)" aria-label="Next step">&#9654;&#9654;</button>
+        <button class="icon-btn" id="endBtn" title="Jump to the end (End)" aria-label="Jump to end">&#8677;</button>
+        <select id="speedSelect" class="select" aria-label="Playback speed">
+          <option value="1400">0.5×</option>
+          <option value="800" selected>1×</option>
+          <option value="420">2×</option>
+          <option value="180">4×</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="timeline-row">
+      <div class="timeline-track"><div class="timeline-fill" id="timelineFill"></div></div>
+      <span class="step-counter" id="stepCounter">step 0 / 0</span>
+    </div>
+
+    <div class="viz-grid">
+      <!-- ---------- conversion ---------- -->
+      <div class="viz-pane" id="convertPane">
+        <div class="pane-head">
+          <h3>Shunting-yard conversion</h3>
+          <span class="pane-hint" id="convertHint">reading tokens left to right</span>
+        </div>
+
+        <div class="token-strip" id="tokenStrip" aria-label="Tokens"></div>
+
+        <div class="split">
+          <div class="stack-box">
+            <h4>Operator stack <span class="sub">top ↑</span></h4>
+            <div class="stack" id="opStack"></div>
+          </div>
+          <div class="queue-box">
+            <h4>Output queue <span class="sub">postfix grows →</span></h4>
+            <div class="queue" id="outQueue"></div>
+          </div>
+        </div>
+
+        <div class="note" id="convertNote">
+          Press <b>Play</b> or step through to watch the stack push and pop.
+        </div>
+      </div>
+
+      <!-- ---------- evaluation ---------- -->
+      <div class="viz-pane dim" id="evalPane">
+        <div class="pane-head">
+          <h3>Stack-machine evaluation</h3>
+          <span class="pane-hint" id="evalHint">waiting for the postfix program</span>
+        </div>
+
+        <div class="token-strip rpn" id="rpnStrip" aria-label="Postfix program"></div>
+
+        <div class="split">
+          <div class="stack-box">
+            <h4>Operand stack <span class="sub">top ↑</span></h4>
+            <div class="stack" id="valStack"></div>
+          </div>
+          <div class="value-box">
+            <h4>Current value</h4>
+            <div class="live-value" id="liveValue">—</div>
+            <div class="live-op" id="liveOp">no operation yet</div>
+          </div>
+        </div>
+
+        <div class="note" id="evalNote">The postfix program is executed one instruction at a time.</div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><i class="sw watch"></i> current token</span>
+      <span><i class="sw done"></i> already processed</span>
+      <span><i class="sw folded"></i> folded constant</span>
+      <span class="legend-note">Stack depth is what makes postfix evaluation <b>O(n)</b>: every token is pushed or popped once.</span>
+    </div>
+  </section>
+
+  <!-- ===================== program / optimizer ===================== -->
+  <section class="card program-card">
+    <div class="card-head">
+      <div>
+        <h3 class="card-title">Compiler &amp; optimiser</h3>
+        <p class="card-sub">The expression is compiled once into a postfix program, then cached. Constant folding shortens the program before it runs.</p>
+      </div>
+      <label class="switch" title="Evaluate the constant-folded program instead of the raw one">
+        <input type="checkbox" id="foldToggle" />
+        <span class="track"><span class="thumb"></span></span>
+        <span class="switch-label">constant folding</span>
+      </label>
+    </div>
+
+    <div class="program-grid">
+      <div class="program-block">
+        <span class="field-label small">shunting-yard output</span>
+        <code class="program-code" id="rawProgram">—</code>
+        <span class="instruction-count" id="rawCount">0 instructions</span>
+      </div>
+      <div class="program-block">
+        <span class="field-label small">after constant folding</span>
+        <code class="program-code" id="foldedProgram">—</code>
+        <span class="instruction-count" id="foldedCount">0 instructions</span>
+      </div>
+    </div>
+
+    <p class="optimiser-note" id="optimiserNote"></p>
+  </section>
+
+  <!-- ===================== tree ===================== -->
+  <section class="card tree-card">
+    <div class="card-head">
+      <div>
+        <h3 class="card-title">Expression tree</h3>
+        <p class="card-sub">Built from the postfix program with a node stack — the shape the optimiser folds.</p>
+      </div>
+      <div class="traversals" id="traversals"></div>
+    </div>
+    <div class="tree-canvas" id="treeCanvas">
+      <p class="empty-state">The tree appears once the expression parses.</p>
+    </div>
+  </section>
+
+  <!-- ===================== benchmarks + cache ===================== -->
+  <section class="grid-2">
+    <section class="card bench-card">
+      <div class="card-head">
+        <div>
+          <h3 class="card-title">Benchmarks</h3>
+          <p class="card-sub">Why compiling once and folding constants is worth it.</p>
+        </div>
+        <button class="btn ghost small" id="benchBtn">Run</button>
+      </div>
+      <div id="benchBody" class="bench-body">
+        <p class="empty-state">Press <b>Run</b> to time the cached + folded pipeline against the naive one.</p>
+      </div>
+    </section>
+
+    <section class="card engine-card">
+      <div class="card-head">
+        <div>
+          <h3 class="card-title">Engine state</h3>
+          <p class="card-sub">Live counters from the C++ process.</p>
+        </div>
+        <button class="btn ghost small" id="resetEngineBtn" title="Clear variables and the LRU cache">Reset</button>
+      </div>
+      <div class="engine-grid" id="engineGrid"></div>
+      <div class="cache-block">
+        <span class="field-label small">LRU cache — most recent first</span>
+        <div class="cache-list" id="cacheList"></div>
+      </div>
+    </section>
+  </section>
+
+  <!-- ===================== notes ===================== -->
+  <section class="card notes-card">
+    <h3 class="card-title">How it works</h3>
+    <div class="notes-grid">
+      <div>
+        <h4>1 · Tokenizer</h4>
+        <p>One left-to-right pass turns the text into tokens and validates the grammar. It even inserts the multiplication nobody typed: <code>2x</code> → <code>2 · x</code>, <code>3(4+5)</code> → <code>3 · (4+5)</code>.</p>
+        <h4>2 · Shunting-yard (Dijkstra)</h4>
+        <p>Operands go straight to the output queue; operators wait on a stack and are popped when a lower-precedence operator arrives. Parentheses mark groups, functions pop after their arguments.</p>
+        <h4>3 · Postfix evaluation</h4>
+        <p>Pure stack machine: a number is pushed, an operator pops its operands and pushes the result. No parentheses, no precedence — that is exactly why postfix exists.</p>
+      </div>
+      <div>
+        <h4>4 · Optimisation</h4>
+        <p>The postfix program is parsed into an expression tree. Any subtree made only of literals is evaluated at compile time and replaced by a single constant. The shorter program is cached in an LRU cache keyed by source text, so re-evaluating skips lexing and parsing entirely.</p>
+        <div class="ds-table">
+          <div class="ds-row head"><span>Structure</span><span>Used for</span><span>Cost</span></div>
+          <div class="ds-row"><span>Array stack</span><span>operators, operands</span><span>push/pop O(1)</span></div>
+          <div class="ds-row"><span>Ring queue</span><span>token stream, output</span><span>enqueue O(1)</span></div>
+          <div class="ds-row"><span>Binary tree</span><span>expression tree, folding</span><span>O(n) build</span></div>
+          <div class="ds-row"><span>Hash map</span><span>variables (open addressing)</span><span>O(1) avg</span></div>
+          <div class="ds-row"><span>LRU cache</span><span>compiled programs</span><span>O(1) get/put</span></div>
+        </div>
+        <p class="muted small">Everything above is written from scratch in C++17 — no <code>std::stack</code>, <code>std::queue</code>, <code>std::unordered_map</code> or <code>std::list</code>.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span>VoltIQ Expr · C++17 engine, hand-written data structures, zero dependencies.</span>
+  <span class="footer-links">
+    <a href="https://github.com/swaruppatil0309/VoltIQ-Electricity-Analytics" target="_blank" rel="noopener">GitHub</a>
+    <button class="linkish" id="footerBench">benchmarks</button>
+    <button class="linkish" id="footerHelp">keyboard shortcuts</button>
+  </span>
+</footer>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="/app.js"></script>
+</body>
+</html>
