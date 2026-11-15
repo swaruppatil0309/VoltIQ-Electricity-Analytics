@@ -1,0 +1,10 @@
+runtime: python311
+
+# The dataset (127 MiB) is fetched once at build time and cached as Parquet.
+# `gunicorn.conf.py` preloads it in the master process before workers fork.
+entrypoint: gunicorn -c gunicorn.conf.py app:app
+
+env_variables:
+  VOLTIQ_DATA_DIR: /tmp/voltiq-data
+  WEB_CONCURRENCY: "1"
+  WEB_THREADS: "4"

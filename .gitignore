@@ -1,0 +1,21 @@
+# Large source dataset - not committed (see README.md#dataset)
+data/*.txt
+data/*.zip
+data/cache/
+!data/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+
+# Misc
+*.log
+.pytest_cache/
